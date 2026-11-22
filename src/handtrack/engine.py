@@ -382,6 +382,12 @@ class Engine(QObject):
     def _run(self):
         req_w, req_h = self.settings.resolution_tuple()
         logger.info("Opening camera %d at %dx%d", self.settings.camera_index + 1, req_w, req_h)
+        from handtrack import camera_access
+        if not os.environ.get("HANDTRACK_VIDEO_SOURCE") and not camera_access.request():
+            logger.warning("No permission to use the camera")
+            self.failed.emit("err_camera_denied", {})
+            self.stopped.emit(threading.get_ident())
+            return
         cap, requested = self._open_camera()
         if cap is None:
             logger.warning("Camera %d could not be opened (missing, or used by another app)",

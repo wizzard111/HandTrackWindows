@@ -494,3 +494,110 @@ def pattern_icon(pattern, size=34):
         p.drawRect(QRectF(x, size * 0.9 - h, bw, h))
     p.end()
     return pix
+
+
+# ------------------------------------------------------------ animation tile ----
+class AnimationTile(QWidget):
+    """A small looping picture in a viewfinder frame (sidebar decoration).
+
+    The frames come from one JPEG grid (assets/animation.jpg, see
+    packaging/make_animation.py). Only frames scaled to the on-screen size are
+    kept (~1 MB); the grid is read again only if the screen scale changes.
+    Plays at up to PLAY_FPS; the timer runs only while the tile is on screen
+    (minimised or in the tray it checks twice a second whether to resume).
+    Switched off, nothing is loaded at all.
+    """
+
+    PLAY_FPS = 15
+    IDLE_MS = 500
+
+    def __init__(self, width=120):
+        super().__init__()
+        self._width = width
+        self._meta = None
+        self._frames = []           # QPixmaps at the current size and scale
+        self._frames_key = None
+        self._index = 0
+        self._interval = round(1000 / self.PLAY_FPS)
+        self._enabled = False
+        try:
+            import json
+            with open(paths.ANIMATION_META_PATH, encoding="utf-8") as f:
+                meta = json.load(f)
+            cols, count = int(meta["columns"]), int(meta["frames"])
+            fps = float(meta.get("fps", 30))
+            size = QPixmap(paths.ANIMATION_PATH).size()     # header only would do; it is small
+            rows = -(-count // cols)
+            fw, fh = size.width() // cols, size.height() // rows
+            if fw <= 0 or fh <= 0:
+                raise ValueError("empty animation")
+            step = max(1, round(fps / self.PLAY_FPS))
+            self._meta = (cols, count, fw, fh, step)
+            self._interval = max(15, round(1000 * step / fps))
+            self.setFixedSize(width, round(width * fh / fw))
+        except (OSError, ValueError, KeyError):
+            logger.exception("Could not load the sidebar animation")
+        self.hide()
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._tick)
+
+    def set_enabled(self, on):
+        self._enabled = bool(on and self._meta)
+        if not self._enabled:
+            self._frames, self._frames_key = [], None       # free the frames
+            self._timer.stop()
+        self.setVisible(self._enabled)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self._enabled:
+            self._timer.start(self._interval)
+
+    def hideEvent(self, event):
+        super().hideEvent(event)
+        self._timer.stop()
+
+    def _on_screen(self):
+        win = self.window()
+        return self.isVisible() and win.isVisible() and not win.isMinimized()
+
+    def _tick(self):
+        if not self._on_screen():
+            if self._timer.interval() != self.IDLE_MS:
+                self._timer.setInterval(self.IDLE_MS)
+            return
+        if self._timer.interval() != self._interval:
+            self._timer.setInterval(self._interval)
+        if self._frames:
+            self._index = (self._index + 1) % len(self._frames)
+        self.update()
+
+    def _ensure_frames(self, w, h, ratio):
+        key = (w, h, ratio)
+        if key == self._frames_key:
+            return
+        cols, count, fw, fh, step = self._meta
+        sheet = QPixmap(paths.ANIMATION_PATH)
+        frames = []
+        for i in range(0, count, step):
+            pix = sheet.copy(i % cols * fw, i // cols * fh, fw, fh).scaled(
+                int(w * ratio), int(h * ratio), Qt.AspectRatioMode.IgnoreAspectRatio,
+                Qt.TransformationMode.SmoothTransformation)
+            pix.setDevicePixelRatio(ratio)
+            frames.append(pix)
+        self._frames, self._frames_key = frames, key
+        self._index %= max(1, len(frames))
+
+    def paintEvent(self, event):
+        if not self._enabled:
+            return
+        p = QPainter(self)
+        rect = QRectF(self.rect())
+        inner = rect.adjusted(4, 4, -4, -4)
+        self._ensure_frames(int(inner.width()), int(inner.height()), self.devicePixelRatioF())
+        if self._frames:
+            p.drawPixmap(inner.topLeft(), self._frames[self._index])
+        p.setPen(QPen(theme.c("border"), 1))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRect(inner.adjusted(-0.5, -0.5, 0.5, 0.5))
+        theme.draw_corner_marks(p, rect.adjusted(0.5, 0.5, -0.5, -0.5), theme.c("muted"), 8, 1.5)

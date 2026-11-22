@@ -148,6 +148,11 @@ STRINGS = {
     "afk_subtext": "away from camera",
 
     "err_title": "Error",
+    "err_camera_denied": (
+        "HandTrack is not allowed to use the camera.\n\n"
+        "Allow it in System Settings → Privacy & Security → Camera "
+        "(turn on HandTrack), then press Start again."
+    ),
     "err_camera": "Could not open webcam {n}.",
     "info_need_camera_title": "Camera needed",
     "info_need_camera": "Press “Start” first.",
@@ -212,6 +217,8 @@ STRINGS = {
     "settings_about": "About",
     "log_window_cb": "Log window at startup",
     "sounds_cb": "Sounds",
+    "animation_cb": "Sidebar animation",
+    "animation_desc": "The small picture under the menu. Pauses while the window is minimised or in the tray.",
     "res_tip": "Camera resolution. 1920 × 1080 needs about twice the CPU of 1280 × 720 just to read the camera; most call apps send 1280 × 720 anyway.",
     "sec_hotkeys": "Hotkey",
     "hotkey_cb": "Hide face from anywhere",

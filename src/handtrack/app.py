@@ -3,6 +3,8 @@
 Command line:
     --self-test   load the models, process a few synthetic frames, exit 0/1
                   (used by the installers and CI; needs no camera or display)
+    --request-camera  macOS: show the camera permission prompt, exit 0 if allowed
+                  (the installer runs it; writes camera-permission.txt)
     --version     print the version
 """
 
@@ -69,6 +71,20 @@ def self_test():
     return 0
 
 
+def request_camera():
+    """Installer step (macOS): show the camera permission prompt for HandTrack.app,
+    wait for the answer, record it in the data folder. Exit 0 when allowed."""
+    from handtrack import camera_access
+    granted = camera_access.request()
+    state = camera_access.status()
+    try:
+        with open(os.path.join(paths.DATA_DIR, "camera-permission.txt"), "w", encoding="utf-8") as f:
+            f.write(state + "\n")
+    except OSError:
+        pass
+    return 0 if granted else 1
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if "--version" in argv:
@@ -78,6 +94,8 @@ def main(argv=None):
     _enable_crash_log()
     if "--self-test" in argv:
         return self_test()
+    if "--request-camera" in argv:
+        return request_camera()
     _windows_app_id()
 
     from PySide6.QtCore import QObject, QPropertyAnimation, QTimer, Signal

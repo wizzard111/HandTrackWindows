@@ -3,3 +3,4 @@ opencv-python-headless>=4.8
 mediapipe>=0.10.14
 numpy>=1.24,<3
 PyAutoGUI>=0.9.54
+pyobjc-framework-AVFoundation>=10 ; sys_platform == "darwin"   # camera permission prompt

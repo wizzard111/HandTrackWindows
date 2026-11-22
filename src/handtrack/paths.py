@@ -57,6 +57,8 @@ SOUNDS_DIR = os.path.join(ASSETS_DIR, "sounds")
 HAND_REFERENCE_PATH = os.path.join(ASSETS_DIR, "hand_reference.png")
 ICON_PATH = os.path.join(ASSETS_DIR, "icon.ico" if IS_WINDOWS else "icon.png")
 LOGO_PATH = os.path.join(ASSETS_DIR, "icon.png")
+ANIMATION_PATH = os.path.join(ASSETS_DIR, "animation.jpg")
+ANIMATION_META_PATH = os.path.join(ASSETS_DIR, "animation.json")
 BUNDLED_MODELS_DIR = os.path.join(BUNDLE_DIR, "models")
 
 MODELS_DIR = os.path.join(DATA_DIR, "models")

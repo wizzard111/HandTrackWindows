@@ -23,7 +23,7 @@ from handtrack.ui.pages import (
     HazardRule,
     FINGER_KEYS, CalibrationPage, CameraPage, EffectsPage, GesturesPage, SettingsPage,
 )
-from handtrack.ui.visuals import CoveringBadge, PreviewWidget, pattern_icon
+from handtrack.ui.visuals import AnimationTile, CoveringBadge, PreviewWidget, pattern_icon
 from handtrack.ui.widgets import Button, FadeStack, NavList, Toast, heading, label
 from handtrack.vision.geometry import fit_gaze
 
@@ -232,6 +232,10 @@ class MainWindow(QMainWindow):
             self.nav.add(tr(key), icon)
         side.addWidget(self.nav)
         side.addStretch(1)
+        self.animation = AnimationTile(120)
+        self.animation.set_enabled(s.animation)
+        side.addWidget(self.animation, 0, Qt.AlignmentFlag.AlignHCenter)
+        side.addSpacing(10)
 
         self.side_status = QLabel()
         self.side_status.setWordWrap(True)
@@ -289,6 +293,7 @@ class MainWindow(QMainWindow):
         self._bind("custom_gestures_enabled", g.enabled_toggle)
         self._bind("log_window", pref.log_row.toggle)
         self._bind("sounds", pref.sounds_row.toggle)
+        self._bind("animation", pref.animation_row.toggle)
         self._bind("hotkey_enabled", pref.hotkey_row.toggle)
         pref.hotkey_change_btn.clicked.connect(self._record_hotkey)
         pref.hotkey_default_btn.clicked.connect(
@@ -359,6 +364,8 @@ class MainWindow(QMainWindow):
         elif name == "vcam":
             self.engine.sync_vcam()
             self._refresh_vcam()
+        elif name == "animation":
+            self.animation.set_enabled(value)
         elif name == "hotkey_enabled":
             self._apply_hotkey()
             self._refresh_hotkey()

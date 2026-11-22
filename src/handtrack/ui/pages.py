@@ -450,6 +450,8 @@ class SettingsPage(QWidget):
         look.body.addWidget(self.theme_row)
         self.sounds_row = SettingRow(tr("sounds_cb"), tr("sounds_desc"), s.sounds)
         look.body.addWidget(self.sounds_row)
+        self.animation_row = SettingRow(tr("animation_cb"), tr("animation_desc"), s.animation)
+        look.body.addWidget(self.animation_row)
         self.log_row = SettingRow(tr("log_window_cb"), tr("log_window_desc"), s.log_window)
         look.body.addWidget(self.log_row)
         col.addWidget(look)

@@ -86,12 +86,12 @@ memory used by HandTrack alone.
 
 | Situation | Windows 11: CPU | RAM | USS | Linux (Debian 13): CPU | RAM | USS |
 |---|---:|---:|---:|---:|---:|---:|
-| Window open, camera off | 1.0 % | 192 MB | 124 MB | 0.3 % | 227 MB | 212 MB |
-| In the tray, camera off | 1.2 % | 192 MB | 124 MB | — | — | — |
-| Camera on | 34 % | 224 MB | 151 MB | 28 % | 275 MB | 262 MB |
-| Camera on, window in the tray | 27 % | 224 MB | 151 MB | — | — | — |
-| Camera on + Hide face | 41 % | 221 MB | 148 MB | 29 % | 271 MB | 257 MB |
-| In a call: Hide face + virtual camera, read by a call app | 37 % | 234 MB | 158 MB | — | — | — |
+| Window open, camera off | 2.1 % | 202 MB | 136 MB | 0.9 % | 241 MB | 227 MB |
+| In the tray, camera off | 1.4 % | 202 MB | 135 MB | — | — | — |
+| Camera on | 36 % | 234 MB | 162 MB | 30 % | 288 MB | 274 MB |
+| Camera on, window in the tray | 25 % | 233 MB | 164 MB | — | — | — |
+| Camera on + Hide face | 35 % | 232 MB | 160 MB | 29 % | 285 MB | 271 MB |
+| In a call: Hide face + virtual camera, read by a call app | 39 % | 244 MB | 169 MB | — | — | — |
 
 With the real webcam (Windows, Lenovo FHD webcam, 1280×720 at ~30 FPS) the numbers depend on what is
 in view: 55–85 % of one core (5–7 % of the whole processor), 250–280 MB RAM. Reading the camera
@@ -103,8 +103,10 @@ driver, which WSL lacks. macOS has not been measured.
 
 How it stays light:
 
-- Idle costs nothing: no timers repaint the window; the preview, status tags and gaze map redraw
-  only when something changes. Before 8.2 an idle window took 11 % of a core.
+- Idle costs almost nothing: no timers repaint the window; the preview, status tags and gaze map
+  redraw only when something changes. Before 8.2 an idle window took 11 % of a core. The small
+  sidebar animation (about 1 % of a core, 15 FPS) pauses while the window is minimised or in the
+  tray, and can be switched off in Settings.
 - Detection slows down while nothing is in view (hands 15, faces 10 checks a second) and returns to
   full rate the moment a hand or face appears. Processing runs on its own thread, the neural
   networks asynchronously; the interface never waits for the camera.

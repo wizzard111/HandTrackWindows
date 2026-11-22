@@ -39,6 +39,7 @@ BASE_SETTINGS = {  # the app's defaults, made explicit; the log window stays clo
     "hide_face": False, "visualize": True, "gaze": True, "fast_mode": True,
     "resolution": "1280x720", "vcam": False, "draw_enabled": True, "afk_enabled": True,
     "preview_visible": True, "show_counter": True, "log_window": False,
+    "animation": os.environ.get("HANDTRACK_BENCH_ANIMATION", "1") == "1",
 }
 
 
