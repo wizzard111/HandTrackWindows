@@ -70,14 +70,14 @@ python -m pytest                                    # tests
 powershell -ExecutionPolicy Bypass -File packaging\windows\build.ps1   # release dist\HandTrack-windows.zip
 ```
 
-GitHub Actions builds and checks the release on every push; a `v*` tag publishes it to Releases.
+GitHub Actions builds and tests the release archive on every push; releases are published from builds that were also tested by hand.
 
 ## Performance
 
 Measured with [`packaging/benchmark.py`](packaging/benchmark.py): the real app runs each situation for
 20 s in a fresh process while the script samples its CPU and memory once a second. To compare
-operating systems on equal terms, a 1280×720 video at 30 FPS (an empty room, so hand and face
-detection keep searching: the costly case) stands in for the webcam.
+operating systems on equal terms, a generated 1280×720 MJPG video at 30 FPS (the same on every OS; no
+hands or faces in view, so detection keeps searching: the costly case) stands in for the webcam.
 
 Machine: AMD Ryzen 5 5600X (6 cores, 12 threads), 16 GB RAM. HandTrack 8.2.0, Python 3.12.
 CPU is in % of **one** core, summed over all of the app's threads; divide by 12 for the share of the
@@ -86,12 +86,15 @@ memory used by HandTrack alone.
 
 | Situation | Windows 11: CPU | RAM | USS | Linux (Debian 13): CPU | RAM | USS |
 |---|---:|---:|---:|---:|---:|---:|
-| Window open, camera off | 2.1 % | 202 MB | 136 MB | 0.9 % | 241 MB | 227 MB |
-| In the tray, camera off | 1.4 % | 202 MB | 135 MB | — | — | — |
-| Camera on | 36 % | 234 MB | 162 MB | 30 % | 288 MB | 274 MB |
-| Camera on, window in the tray | 25 % | 233 MB | 164 MB | — | — | — |
-| Camera on + Hide face | 35 % | 232 MB | 160 MB | 29 % | 285 MB | 271 MB |
-| In a call: Hide face + virtual camera, read by a call app | 39 % | 244 MB | 169 MB | — | — | — |
+| Window open, camera off | 1.1 % | 203 MB | 135 MB | 0.7 % | 241 MB | 209 MB |
+| In the tray, camera off | 0.6 % | 204 MB | 135 MB | — | — | — |
+| Camera on | 33 % | 236 MB | 163 MB | 29 % | 288 MB | 252 MB |
+| Camera on, window in the tray | 25 % | 235 MB | 162 MB | — | — | — |
+| Camera on + Hide face | 32 % | 234 MB | 161 MB | 29 % | 285 MB | 248 MB |
+| In a call: Hide face + virtual camera, read by a call app | 38 % | 246 MB | 169 MB | — | — | — |
+
+Medians of 5 runs of 20 s each on an otherwise idle machine (`--repeat 5`). The optional log window
+adds a second, tiny process: 0 % CPU and 13 MB on Windows, a terminal running `tail` on Linux and macOS.
 
 With the real webcam (Windows, Lenovo FHD webcam, 1280×720 at ~30 FPS) the numbers depend on what is
 in view: 55–85 % of one core (5–7 % of the whole processor), 250–280 MB RAM. Reading the camera
@@ -121,8 +124,8 @@ How it stays light:
   matplotlib and audio packages. The face-hiding sound is played by the operating system, with no
   audio library in the app.
 
-Reproduce: `PYTHONPATH=src python packaging/benchmark.py --video any-video.mp4`
-(or `--video camera` for the webcam).
+Reproduce: `PYTHONPATH=src python packaging/benchmark.py --repeat 5` (needs `psutil`; add
+`--video camera` to use the webcam). Your settings are not touched: every run uses a throwaway data folder.
 
 ## License
 
