@@ -235,6 +235,7 @@ class Engine(QObject):
 
     def shutdown(self):
         self.stop()
+        self._close_vcam(announce=False)
         if self._landmarkers:
             for detector in self._landmarkers:
                 try:
@@ -328,6 +329,8 @@ class Engine(QObject):
             return
         reader = LatestFrameCapture(cap)
         reader.start()
+        if self._vcam is not None:
+            self._vcam.announced = None  # report the state again for this run
         with self._lock:
             self._hand = (None, -1, 0.0)
             self._face = (None, -1, 0.0)
@@ -361,7 +364,8 @@ class Engine(QObject):
                     logger.exception("Unhandled error in video loop")
         finally:
             reader.stop()
-            self._close_vcam()
+            # The virtual camera stays open: with no frames coming it switches
+            # to the standby picture by itself (see VirtualCameraSender).
             self.drawing.clear()
             self._hand_calib = None
             if self._gaze_calib is not None:
@@ -685,6 +689,20 @@ class Engine(QObject):
             self.vcam_state.emit("on", {"dev": sender.device, "w": width, "h": height,
                                         "active": sender.active})
         sender.submit(frame)
+
+    def sync_vcam(self):
+        """While the camera is stopped, keep the virtual camera open with the
+        standby picture when streaming is on, and close it when it is off.
+        Call from the GUI thread; the worker manages it while running."""
+        if self.running:
+            return
+        want = self.settings.vcam and VCAM_AVAILABLE
+        if want and self._vcam is None:
+            width, height = self.settings.resolution_tuple()
+            self._vcam = VirtualCameraSender(width, height)
+            self._vcam.start()
+        elif not want and self._vcam is not None:
+            self._close_vcam(announce=False)
 
     def _close_vcam(self, announce=True):
         if self._vcam is not None:

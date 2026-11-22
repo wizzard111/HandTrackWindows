@@ -60,7 +60,12 @@ _UC_CLSID = r"CLSID\{{5C2CD55C-92AD-4999-8666-912BD3E700{:02X}}}"
 _UC_MAX_IMAGE = 3840 * 2160 * 4 * 2
 _UC_HEADER = struct.Struct("<Iiiiiiii")  # maxSize, w, h, stride, format, resize, mirror, timeout
 _UC_RESIZE_LINEAR = 1
-_UC_TIMEOUT_MS = 1500
+# After `timeout` ms without a new frame the filter paints a coloured error
+# pattern over the picture ("Unity has stopped sending image data"). A value
+# of 0 does not disable it (it triggers at once), so use a huge one: the last
+# frame stays up, and the sender keeps a standby picture flowing anyway.
+# (The filter adds 199 to it as a 32-bit int, so stay well below 2**31.)
+_UC_TIMEOUT_MS = 1_000_000_000
 
 
 def _reg_default(path):
@@ -358,11 +363,15 @@ class VirtualCameraSender:
     """Owns the virtual camera on its own thread; only the newest frame is kept.
 
     ``active`` is True while some app is actually reading the camera (known on
-    Windows). When nobody watches, frames are written at ~2 FPS.
+    Windows). When nobody watches, frames are written at ~2 FPS. When no frame
+    arrives for STANDBY_AFTER seconds (camera stopped, reopening or stalled),
+    the standby picture is sent instead, so a call never sees a frozen frame or
+    the driver's own error pattern.
     """
 
     IDLE_INTERVAL = 0.5
     ACTIVE_GRACE = 1.0
+    STANDBY_AFTER = 0.5
 
     def __init__(self, width, height, fps=30):
         self.width = width
@@ -434,12 +443,19 @@ class VirtualCameraSender:
     def _run_output(self, out):
         self._started.set()
         last_want = last_sent = 0.0
+        last_frame = time.monotonic()
+        standby = None
         try:
             while not self._stop_event.is_set():
                 try:
                     frame = self._frames.get(timeout=0.2)
+                    last_frame = time.monotonic()
                 except queue.Empty:
-                    continue
+                    if time.monotonic() - last_frame < self.STANDBY_AFTER:
+                        continue
+                    if standby is None:
+                        standby = _standby_frame(self.width, self.height)
+                    frame = standby
                 now = time.monotonic()
                 if out.consumer_wants_frame():
                     last_want = now

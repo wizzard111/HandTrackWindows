@@ -31,7 +31,7 @@ Running the installer again only adds what is missing or changed.
 ## Features
 
 - **HandTrack Camera**: its own virtual camera (the driver is installed with the app). The resolution adapts by itself and the picture is never stretched. While nobody watches the camera, almost no frames are sent, so the CPU rests.
-- **Hide face**: a black mask with a red shield; if the face is lost, the whole frame is covered. The app shows a blinking **COVERING** badge meanwhile.
+- **Hide face**: a plain black square over your face; if the face is lost, the whole frame is covered. The app shows a blinking **COVERING** badge meanwhile.
 - **Pinch drawing**: lines that fade out smoothly, with jitter smoothing and a choice of colour, thickness and lifetime; clear them with a button or a gesture.
 - **My gestures**: any finger combination → hotkeys, media, volume, programs, links, a screenshot, face hiding, clearing the drawing.
 - **Photos on gestures**: show 1–5 fingers and your picture "sticks" to your hand.

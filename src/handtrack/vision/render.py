@@ -181,20 +181,10 @@ def face_box(face_landmarks, w, h):
             min(w, int(right + pad_x)), min(h, int(bottom + pad_y)))
 
 
-_SHIELD = np.array([(0.0, -1.0), (0.82, -0.68), (0.72, 0.25), (0.0, 1.0), (-0.72, 0.25), (-0.82, -0.68)])
-
-
 def draw_privacy_mask(frame, box):
-    """Black box with a red shield, so the other side sees it is intentional."""
+    """A plain black square over the face."""
     x1, y1, x2, y2 = box
     frame[y1:y2, x1:x2] = 0
-    w, h = x2 - x1, y2 - y1
-    if w < 40 or h < 40:
-        return
-    r = min(w, h) * 0.22
-    cx, cy = x1 + w / 2, y1 + h / 2
-    pts = (_SHIELD * r + (cx, cy)).astype(np.int32)
-    cv2.polylines(frame, [pts], True, (34, 13, 154), max(2, int(r / 9)), cv2.LINE_AA)
 
 
 def draw_afk(frame, title, subtitle):

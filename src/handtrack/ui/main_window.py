@@ -152,6 +152,9 @@ class MainWindow(QMainWindow):
 
         self._build()
         set_dark_title_bar(self, settings.dark_mode)
+        # Calls see the standby picture, not the driver's error pattern, as
+        # long as HandTrack runs with streaming on.
+        self.engine.sync_vcam()
 
     # ================================================================ build ====
     def _build(self):
@@ -309,6 +312,7 @@ class MainWindow(QMainWindow):
         elif name == "hide_face":
             self._refresh_covering()
         elif name == "vcam":
+            self.engine.sync_vcam()
             self._refresh_vcam()
         elif name == "gaze" and not value:
             self.camera.gaze_map.set_point(None)
@@ -480,6 +484,7 @@ class MainWindow(QMainWindow):
             return
         self._camera_state = "stopped"
         self._vcam_info = None
+        self.engine.sync_vcam()
         if self._gaze_overlay is not None:
             self._close_gaze_overlay()
         self._refresh_all()
