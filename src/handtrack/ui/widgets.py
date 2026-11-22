@@ -4,7 +4,7 @@ from PySide6.QtCore import (
     QEasingCurve, QParallelAnimationGroup, QPoint, QPointF, QPropertyAnimation, QRectF, QSize,
     Qt, QTimer, QVariantAnimation, Property, Signal,
 )
-from PySide6.QtGui import QFontMetrics, QColor, QFont, QLinearGradient, QPainter, QPen
+from PySide6.QtGui import QFontMetrics, QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import (
     QAbstractButton, QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QSizePolicy, QSlider,
     QStackedWidget, QVBoxLayout, QWidget,
@@ -118,18 +118,12 @@ class Toggle(QAbstractButton):
         off = theme.mix(theme.c("surface3"), theme.c("faint"), self._hover * 0.4)
         track = theme.chamfer_path(rect, 5, "tl,br")
         p.setPen(QPen(theme.mix(theme.c("border"), theme.c("accent"), t), 1))
-        if t > 0:
-            grad = QLinearGradient(rect.topLeft(), rect.topRight())
-            grad.setColorAt(0, theme.mix(off, theme.c("accent2"), t))
-            grad.setColorAt(1, theme.mix(off, theme.c("accent"), t))
-            p.setBrush(grad)
-        else:
-            p.setBrush(off)
+        p.setBrush(theme.mix(off, theme.c("accent"), t))
         p.drawPath(track)
         knob_w = rect.height() - 6
         x = rect.left() + 3 + (rect.width() - knob_w - 6) * self._pos
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor("#ffffff") if t > 0.5 else theme.c("muted"))
+        p.setBrush(theme.c("accent_text") if t > 0.5 else theme.c("muted"))
         p.drawRect(QRectF(x, rect.top() + 3, knob_w, knob_w))
 
 
@@ -193,16 +187,13 @@ class Button(QAbstractButton):
         h = self._hover
         white = QColor("white")
         if self.kind == "primary":
-            grad = QLinearGradient(rect.topLeft(), rect.topRight())
-            grad.setColorAt(0, theme.mix(theme.c("accent2"), theme.c("accent"), 0.15 + 0.35 * h))
-            grad.setColorAt(1, theme.mix(theme.c("accent"), white, 0.12 * h))
-            p.setBrush(grad)
-            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(theme.mix(theme.c("accent"), white, 0.08 * h))
+            p.setPen(QPen(theme.mix(theme.c("accent"), QColor("black"), 0.35), 1))
             fg = theme.c("accent_text")
         elif self.kind == "danger":
-            p.setBrush(theme.mix(theme.c("accent"), white, 0.14 * h))
+            p.setBrush(theme.mix(theme.c("danger"), white, 0.08 * h))
             p.setPen(Qt.PenStyle.NoPen)
-            fg = white
+            fg = theme.c("accent_text")
         elif self.kind == "ghost":
             p.setBrush(theme.c("surface3", 0.9 * h))
             p.setPen(QPen(theme.c("accent", 0.8 * h), 1))
@@ -424,11 +415,8 @@ class NavIndicator(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = QRectF(self.rect())
-        grad = QLinearGradient(rect.topLeft(), rect.topRight())
-        grad.setColorAt(0, theme.c("accent", 0.28))
-        grad.setColorAt(1, theme.c("accent2", 0.05))
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(grad)
+        p.setBrush(theme.c("surface3"))
         p.drawPath(theme.chamfer_path(rect, 8))
         p.setBrush(theme.c("accent"))
         p.drawRect(QRectF(0, 6, 3, rect.height() - 12))
@@ -616,7 +604,7 @@ class Segmented(QWidget):
         p.setFont(self._font)
         for i, text in enumerate(self._options):
             closeness = max(0.0, 1 - abs(self._pos - i))
-            p.setPen(theme.mix(theme.c("muted"), QColor("white"), closeness))
+            p.setPen(theme.mix(theme.c("muted"), theme.c("accent_text"), closeness))
             p.drawText(QRectF(4 + seg * i, 0, seg, rect.height()), Qt.AlignmentFlag.AlignCenter,
                        text.upper())
 

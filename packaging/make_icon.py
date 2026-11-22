@@ -1,6 +1,6 @@
 """Generate src/handtrack/assets/icon.png, icon.ico and icon.icns-ready PNG.
 
-Black chamfered tile, red/purple edge glow, white hand outline.
+Soot-black chamfered tile, dried-red edge, worn off-white hand outline.
 Run after changing the design: python packaging/make_icon.py
 """
 
@@ -26,11 +26,11 @@ def render():
     tile = np.zeros((S, S), np.uint8)
     cv2.fillPoly(tile, [chamfer_poly(pad, pad, S - pad, S - pad, cut)], 255, cv2.LINE_AA)
 
-    # Background: near-black with a purple bloom bottom-left and red top-right.
     yy, xx = np.mgrid[0:S, 0:S].astype(np.float32) / S
-    purple = np.exp(-((xx - 0.15) ** 2 + (yy - 0.9) ** 2) / 0.18)[..., None] * np.array((184, 31, 91))
-    red = np.exp(-((xx - 0.95) ** 2 + (yy - 0.1) ** 2) / 0.10)[..., None] * np.array((69, 31, 255))
-    bg = np.clip(np.array((14, 6, 10)) + purple * 0.55 + red * 0.45, 0, 255)
+    # Soot black with a faint muddy-purple stain and film grain.
+    stain = np.exp(-((xx - 0.2) ** 2 + (yy - 0.85) ** 2) / 0.25)[..., None] * np.array((47, 32, 53))
+    grain = np.random.default_rng(7).normal(0, 4, (S, S, 1))
+    bg = np.clip(np.array((12, 11, 13)) + stain * 0.6 + grain, 0, 255)
     img[..., :3] = bg
     img[..., 3] = tile
 
@@ -39,9 +39,9 @@ def render():
     cv2.polylines(edge, [chamfer_poly(pad + 14, pad + 14, S - pad - 14, S - pad - 14, cut - 6)], True,
                   255, 10, cv2.LINE_AA)
     e = edge.astype(np.float32)[..., None] / 255
-    img[..., :3] = img[..., :3] * (1 - e) + np.array((69, 31, 255)) * e
+    img[..., :3] = img[..., :3] * (1 - e) + np.array((34, 30, 150)) * e
 
-    # Hand outline from the reference image, thickened, white with a red glow.
+    # Hand outline from the reference image, thickened, worn off-white.
     gray = cv2.imdecode(np.fromfile(os.path.join(ASSETS, "hand_reference.png"), np.uint8),
                         cv2.IMREAD_GRAYSCALE)
     hand = np.clip((190 - gray.astype(np.int16)) * 4, 0, 255).astype(np.uint8)
@@ -51,10 +51,8 @@ def render():
     layer = np.zeros((S, S), np.uint8)
     o = (S - inner) // 2
     layer[o + 20:o + 20 + inner, o:o + inner] = hand
-    glow = cv2.GaussianBlur(layer, (0, 0), 28).astype(np.float32)[..., None] / 255
-    img[..., :3] = np.clip(img[..., :3] + glow * np.array((69, 31, 255)) * 1.6, 0, 255)
     a = layer.astype(np.float32)[..., None] / 255
-    img[..., :3] = img[..., :3] * (1 - a) + 255 * a
+    img[..., :3] = img[..., :3] * (1 - a) + np.array((196, 202, 208)) * a
     return np.clip(img, 0, 255).astype(np.uint8)
 
 

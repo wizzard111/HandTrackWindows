@@ -6,7 +6,7 @@ import math
 import cv2
 import numpy as np
 from PySide6.QtCore import QEasingCurve, QPointF, QRectF, QSize, Qt, QTimer, QVariantAnimation, Signal
-from PySide6.QtGui import QColor, QImage, QPainter, QPainterPath, QPen, QPixmap, QPolygonF, QRadialGradient
+from PySide6.QtGui import QColor, QImage, QPainter, QPainterPath, QPen, QPixmap, QPolygonF
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 from handtrack import paths
@@ -40,15 +40,10 @@ def paint_covering(p, rect, phase, title, subtitle):
     p.setBrush(Qt.BrushStyle.NoBrush)
     p.setPen(QPen(theme.c("accent", 0.6 * (1 - ring)), 2))
     p.drawPath(shield_path(cx, cy, 11 + 12 * ring))
-    glow = QRadialGradient(QPointF(cx, cy), 26)
-    glow.setColorAt(0, theme.c("accent", 0.35 + 0.35 * beat))
-    glow.setColorAt(1, QColor(0, 0, 0, 0))
     p.setPen(Qt.PenStyle.NoPen)
-    p.setBrush(glow)
-    p.drawEllipse(QPointF(cx, cy), 26, 26)
-    p.setBrush(red)
+    p.setBrush(theme.mix(red, QColor("black"), 0.35 * (1 - beat)))
     p.drawPath(shield_path(cx, cy, 10 + 1.5 * beat))
-    p.setPen(QPen(QColor("white"), 1.6))
+    p.setPen(QPen(theme.c("accent_text"), 1.6))
     p.setBrush(Qt.BrushStyle.NoBrush)
     p.drawLine(QPointF(cx - 4, cy), QPointF(cx - 1, cy + 3))
     p.drawLine(QPointF(cx - 1, cy + 3), QPointF(cx + 4, cy - 3))
@@ -58,13 +53,13 @@ def paint_covering(p, rect, phase, title, subtitle):
     p.setFont(theme.display_font(11, 2.5))
     p.drawText(QRectF(cx + 22, rect.top() + 6, rect.width() - 60, 22),
                Qt.AlignmentFlag.AlignVCenter, title + dots)
-    p.setPen(QColor(255, 255, 255, 170))
+    p.setPen(theme.c("muted"))
     p.setFont(theme.font(8.5))
     p.drawText(QRectF(cx + 22, rect.top() + 26, rect.width() - 60, 18),
                Qt.AlignmentFlag.AlignVCenter, subtitle)
     # Scan line sweeping across the badge.
     x = rect.left() + rect.width() * ((phase * 1.5) % 1.0)
-    p.setPen(QPen(theme.c("accent", 0.35), 1))
+    p.setPen(QPen(theme.c("accent", 0.18), 1))
     p.drawLine(QPointF(x, rect.top() + 2), QPointF(x, rect.bottom() - 2))
     p.restore()
 
@@ -234,7 +229,7 @@ class PreviewWidget(QWidget):
         beat = 0.5 + 0.5 * math.sin(self._phase * math.tau * 3)
         p.setBrush(theme.c("accent", 0.45 + 0.55 * beat))
         p.drawRect(QRectF(badge.left() + 11, badge.center().y() - 4, 8, 8))
-        p.setPen(QColor("white"))
+        p.setPen(theme.c("accent_text"))
         p.drawText(badge.adjusted(26, 0, 0, 0), Qt.AlignmentFlag.AlignVCenter, live.upper())
         if self._fps:
             text = f"{self._fps:.0f} FPS"
@@ -252,38 +247,31 @@ class PreviewWidget(QWidget):
     def _paint_standby(self, p, rect):
         cx, cy = rect.center().x(), rect.center().y() - 24
         t = self._phase
-        # Slow purple/red haze.
-        for i, color in enumerate((theme.c("accent2"), theme.c("accent"))):
-            angle = (t + i * 0.5) * math.tau
-            grad = QRadialGradient(QPointF(cx + math.cos(angle) * 60, cy + math.sin(angle) * 30), 230)
-            grad.setColorAt(0, theme.c("accent2" if i == 0 else "accent", 0.20 if i == 0 else 0.10))
-            grad.setColorAt(1, QColor(0, 0, 0, 0))
-            p.fillRect(rect, grad)
-        # Faint scan grid.
-        p.setPen(QPen(QColor(255, 255, 255, 10), 1))
+        # Faint grid on soot black.
+        p.setPen(QPen(QColor(255, 255, 255, 7), 1))
         step = 32
         for x in range(0, int(rect.width()), step):
             p.drawLine(x, 0, x, int(rect.height()))
         for y in range(0, int(rect.height()), step):
             p.drawLine(0, y, int(rect.width()), y)
         scan_y = rect.height() * ((t * 1.4) % 1.0)
-        p.setPen(QPen(theme.c("accent", 0.25), 1))
+        p.setPen(QPen(theme.c("accent", 0.12), 1))
         p.drawLine(QPointF(0, scan_y), QPointF(rect.width(), scan_y))
 
         beat = 0.5 + 0.5 * math.sin(t * math.tau * 2)
         hexr = 46 + 4 * beat
-        p.setPen(QPen(theme.c("accent", 0.5 + 0.4 * beat), 2))
+        p.setPen(QPen(theme.c("accent", 0.55 + 0.25 * beat), 2))
         p.setBrush(QColor(0, 0, 0, 160))
         p.drawPath(theme.chamfer_path(QRectF(cx - hexr, cy - hexr, 2 * hexr, 2 * hexr), 16, "tl,tr,br,bl"))
         if self._state == self.STARTING:
             pen = QPen(theme.c("accent"), 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap)
             p.setPen(pen)
             p.drawArc(QRectF(cx - 58, cy - 58, 116, 116), int(-t * 360 * 4 * 16), 70 * 16)
-        theme.draw_icon(p, "camera", QRectF(cx - 18, cy - 18, 36, 36), QColor("white"))
-        p.setPen(QColor("white"))
+        theme.draw_icon(p, "camera", QRectF(cx - 18, cy - 18, 36, 36), theme.c("accent_text"))
+        p.setPen(theme.c("accent_text"))
         p.setFont(theme.display_font(17, 3))
         p.drawText(QRectF(0, cy + 66, rect.width(), 34), Qt.AlignmentFlag.AlignCenter, self._texts[0])
-        p.setPen(QColor(255, 255, 255, 130))
+        p.setPen(theme.c("muted"))
         p.setFont(theme.font(10))
         p.drawText(QRectF(0, cy + 100, rect.width(), 24), Qt.AlignmentFlag.AlignCenter, self._texts[1])
 
@@ -335,19 +323,13 @@ class GazeMap(QWidget):
             return
         x = rect.left() + 10 + (rect.width() - 20) * self._pos.x()
         y = rect.top() + 10 + (rect.height() - 20) * self._pos.y()
-        glow = QRadialGradient(QPointF(x, y), 28)
-        glow.setColorAt(0, theme.c("accent", 0.5 * self._visible))
-        glow.setColorAt(1, QColor(0, 0, 0, 0))
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(glow)
-        p.drawEllipse(QPointF(x, y), 28, 28)
         p.setPen(QPen(theme.c("accent", self._visible), 2))
         p.drawLine(QPointF(x - 12, y), QPointF(x - 4, y))
         p.drawLine(QPointF(x + 4, y), QPointF(x + 12, y))
         p.drawLine(QPointF(x, y - 12), QPointF(x, y - 4))
         p.drawLine(QPointF(x, y + 4), QPointF(x, y + 12))
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(255, 255, 255, int(255 * self._visible)))
+        p.setBrush(theme.c("accent_text", self._visible))
         p.drawRect(QRectF(x - 2, y - 2, 4, 4))
 
 
@@ -445,7 +427,7 @@ class HandDiagram(QWidget):
         on, off = theme.c("accent"), theme.c("faint")
         rgba = np.zeros((size, size, 4), np.float32)
         # Glow underneath, outline on top (premultiplied "over").
-        ga = np.clip(glow.astype(np.float32) * 0.9, 0, 190)[..., None] / 255.0
+        ga = np.zeros_like(glow, dtype=np.float32)[..., None]   # flat, no glow
         rgba[..., :3] = np.array((on.red(), on.green(), on.blue()), np.float32) * ga
         rgba[..., 3:4] = ga
         sel = (selected > 0)[..., None]
@@ -519,7 +501,7 @@ class HandDiagram(QWidget):
             p.setPen(QPen(theme.c("surface"), 2))
             p.setBrush(theme.c("accent") if on else theme.c("surface3"))
             p.drawPath(theme.chamfer_path(box, 5, "tl,tr,br,bl"))
-            p.setPen(QColor("white") if on else theme.c("text"))
+            p.setPen(theme.c("accent_text") if on else theme.c("text"))
             p.drawText(box, Qt.AlignmentFlag.AlignCenter, str(i + 1))
 
 

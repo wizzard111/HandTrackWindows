@@ -3,7 +3,7 @@
 import math
 
 from PySide6.QtCore import QEasingCurve, QPointF, QRectF, Qt, QTimer, QVariantAnimation, Signal
-from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPen, QPixmap, QRadialGradient
+from PySide6.QtGui import QColor, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QWidget
 
 from handtrack import __version__, paths
@@ -90,11 +90,6 @@ class GazeCalibrationOverlay(QWidget):
 
         c = self._dot
         beat = 0.5 + 0.5 * math.sin(self._phase * math.tau * 3)
-        glow = QRadialGradient(c, 70)
-        glow.setColorAt(0, theme.c("accent", 0.30 + 0.2 * beat))
-        glow.setColorAt(1, QColor(0, 0, 0, 0))
-        p.setBrush(glow)
-        p.drawEllipse(c, 70, 70)
         ring = QRectF(c.x() - 26, c.y() - 26, 52, 52)
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.setPen(QPen(QColor(255, 255, 255, 40), 4))
@@ -106,7 +101,7 @@ class GazeCalibrationOverlay(QWidget):
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             p.drawLine(QPointF(c.x() + dx * 34, c.y() + dy * 34), QPointF(c.x() + dx * 44, c.y() + dy * 44))
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor("white"))
+        p.setBrush(theme.mix(QColor("#d8d0c8"), red, 0.3 * beat))
         r = 6 - 2 * self._shown_fill
         p.drawRect(QRectF(c.x() - r, c.y() - r, 2 * r, 2 * r))
 
@@ -148,11 +143,6 @@ class Splash(QWidget):
         p.setBrush(theme.c("surface"))
         p.drawPath(path)
         p.setClipPath(path)
-        a = self._phase * math.tau
-        grad = QRadialGradient(QPointF(rect.center().x() + math.cos(a) * 120, 40), 230)
-        grad.setColorAt(0, theme.c("accent2", 0.35))
-        grad.setColorAt(1, QColor(0, 0, 0, 0))
-        p.fillRect(rect, grad)
         p.setClipping(False)
         p.setPen(QPen(theme.c("accent"), 2))
         p.drawLine(QPointF(rect.left() + 1, rect.top() + 22), QPointF(rect.left() + 22, rect.top() + 1))
@@ -172,10 +162,7 @@ class Splash(QWidget):
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(theme.c("surface3"))
         p.drawRect(bar)
-        grad = QLinearGradient(bar.topLeft(), bar.topRight())
-        grad.setColorAt(0, theme.c("accent2"))
-        grad.setColorAt(1, theme.c("accent"))
-        p.setBrush(grad)
+        p.setBrush(theme.c("accent"))
         if self._progress is None:
             w = bar.width() * 0.3
             x = bar.left() + (bar.width() + w) * ((self._phase * 2.2) % 1.0) - w

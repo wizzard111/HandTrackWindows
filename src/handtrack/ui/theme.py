@@ -1,7 +1,8 @@
 """Colour tokens, fonts, SVG icons, chamfered shapes and the stylesheet.
 
-Look: black and white with blood red and deep purple, hard chamfered
-corners, uppercase display headings.
+Look: dark, dirty and matte — soot black, worn off-white, dried-blood red,
+muddy aubergine; hard chamfered corners, uppercase display headings. No
+gradients and no glow.
 """
 
 import os
@@ -13,43 +14,43 @@ from PySide6.QtSvg import QSvgRenderer
 from handtrack import paths
 
 DARK = {
-    "bg": "#060509",
-    "sidebar": "#0a080e",
-    "surface": "#100d15",
-    "surface2": "#17121e",
-    "surface3": "#221a2c",
-    "border": "#2b2236",
-    "text": "#f5f3f8",
-    "muted": "#9a92a8",
-    "faint": "#5f5769",
-    "accent": "#ff1f45",      # red
-    "accent2": "#5b1fb8",     # deep purple
-    "accent_text": "#ffffff",
-    "success": "#ff1f45",     # "on" states are red, too
-    "ok": "#f5f3f8",
-    "danger": "#ff1f45",
-    "warning": "#a855f7",
-    "stage": "#000000",
+    "bg": "#0b0a0a",
+    "sidebar": "#0e0c0c",
+    "surface": "#131111",
+    "surface2": "#191616",
+    "surface3": "#231f1e",
+    "border": "#2c2625",
+    "text": "#c9c1ba",        # dirty off-white
+    "muted": "#7b726b",
+    "faint": "#4d4541",
+    "accent": "#8a1c1c",      # dried blood
+    "accent2": "#35202f",     # muddy aubergine
+    "accent_text": "#e2dad3",
+    "success": "#8a1c1c",
+    "ok": "#c9c1ba",
+    "danger": "#9c2020",
+    "warning": "#5e3a55",
+    "stage": "#050404",
 }
 
 LIGHT = {
-    "bg": "#efeef2",
-    "sidebar": "#e5e3ea",
-    "surface": "#ffffff",
-    "surface2": "#f2f1f5",
-    "surface3": "#e2dfe8",
-    "border": "#d4d0dc",
-    "text": "#0b0a0e",
-    "muted": "#5a5366",
-    "faint": "#958ea1",
-    "accent": "#e0102f",
-    "accent2": "#4a168f",
-    "accent_text": "#ffffff",
-    "success": "#e0102f",
-    "ok": "#0b0a0e",
-    "danger": "#e0102f",
-    "warning": "#6d28d9",
-    "stage": "#000000",
+    "bg": "#c9c3ba",          # dirty paper
+    "sidebar": "#bfb8ae",
+    "surface": "#d5cfc6",
+    "surface2": "#cbc4ba",
+    "surface3": "#b8b0a5",
+    "border": "#a39a8f",
+    "text": "#141111",
+    "muted": "#4a433e",
+    "faint": "#7a7067",
+    "accent": "#741717",
+    "accent2": "#35202f",
+    "accent_text": "#ece5de",
+    "success": "#741717",
+    "ok": "#141111",
+    "danger": "#7f1a1a",
+    "warning": "#4a2c44",
+    "stage": "#050404",
 }
 
 # Lucide icon file names (assets/icons, ISC license).
@@ -255,10 +256,7 @@ def stylesheet():
     }}
 
     QSlider::groove:horizontal {{ height: 3px; background: {t['surface3']}; }}
-    QSlider::sub-page:horizontal {{
-        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-            stop:0 {t['accent2']}, stop:1 {t['accent']});
-    }}
+    QSlider::sub-page:horizontal {{ background: {t['accent']}; }}
     QSlider::handle:horizontal {{
         background: {t['text']}; width: 10px; height: 18px; margin: -8px 0;
         border: 2px solid {t['accent']};

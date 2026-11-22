@@ -77,7 +77,7 @@ class Settings:
     draw_color: int = 0
     draw_thickness: int = 6
     draw_lifetime: float = 10.0     # seconds, 0 = until cleared
-    draw_glow: bool = True
+    draw_glow: bool = False
     afk_enabled: bool = True
     afk_timeout: float = 8.0
     lang: str = "ru"

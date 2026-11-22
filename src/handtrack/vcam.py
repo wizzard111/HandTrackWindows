@@ -349,7 +349,7 @@ def _standby_frame(width, height):
     scale = max(0.9, width / 700)
     (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, scale, 2)
     cv2.putText(frame, text, ((width - tw) // 2, (height + th) // 2), cv2.FONT_HERSHEY_DUPLEX,
-                scale, (69, 31, 255), 2, cv2.LINE_AA)
+                scale, (34, 30, 150), 2, cv2.LINE_AA)
     return frame
 
 

@@ -14,14 +14,14 @@ from handtrack.vision.geometry import EYE_VIZ_POINTS, FACE_MASK_ANCHOR_IDX, HAND
 logger = logging.getLogger("handtrack")
 
 STICKER_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
-SKELETON_COLOR = (69, 31, 255)     # BGR red
-JOINT_COLOR = (255, 255, 255)
+SKELETON_COLOR = (34, 30, 150)     # BGR dark red
+JOINT_COLOR = (196, 202, 208)      # worn off-white
 STICKER_SIZE_BUCKET = 8
 STICKER_ANGLE_BUCKET = 5
 STICKER_CACHE_SIZE = 192
 
-# Drawing colours (BGR): red, white, purple, cyan, yellow.
-DRAW_COLORS = ((69, 31, 255), (255, 255, 255), (247, 85, 168), (238, 211, 34), (36, 191, 251))
+# Drawing colours (BGR): dried red, worn white, muddy purple, slate, rust.
+DRAW_COLORS = ((34, 30, 150), (196, 202, 208), (95, 55, 110), (120, 110, 100), (40, 85, 150))
 
 
 # ---------------------------------------------------------------- stickers ----
@@ -30,7 +30,7 @@ def make_placeholder_sticker(n, size=400):
     img = np.zeros((size, size, 4), np.uint8)
     c = size // 2
     cv2.circle(img, (c, c), c - 10, (16, 10, 14, 235), -1, cv2.LINE_AA)
-    cv2.circle(img, (c, c), c - 14, (69, 31, 255, 255), 14, cv2.LINE_AA)
+    cv2.circle(img, (c, c), c - 14, (34, 30, 150, 255), 14, cv2.LINE_AA)
     text = str(n)
     scale = size / 90
     (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, scale, 12)
@@ -194,7 +194,7 @@ def draw_privacy_mask(frame, box):
     r = min(w, h) * 0.22
     cx, cy = x1 + w / 2, y1 + h / 2
     pts = (_SHIELD * r + (cx, cy)).astype(np.int32)
-    cv2.polylines(frame, [pts], True, (69, 31, 255), max(2, int(r / 9)), cv2.LINE_AA)
+    cv2.polylines(frame, [pts], True, (34, 30, 150), max(2, int(r / 9)), cv2.LINE_AA)
 
 
 def draw_afk(frame, title, subtitle):
@@ -203,13 +203,13 @@ def draw_afk(frame, title, subtitle):
     # Diagonal hazard stripes in deep purple.
     step = max(24, w // 24)
     for x in range(-h, w, step * 2):
-        cv2.line(frame, (x, h), (x + h, 0), (40, 14, 30), step // 2)
+        cv2.line(frame, (x, h), (x + h, 0), (24, 18, 22), step // 2)
     (tw, th), _ = cv2.getTextSize(title, cv2.FONT_HERSHEY_DUPLEX, 3.0, 6)
     org = ((w - tw) // 2, (h + th) // 2)
-    cv2.putText(frame, title, org, cv2.FONT_HERSHEY_DUPLEX, 3.0, (69, 31, 255), 6, cv2.LINE_AA)
+    cv2.putText(frame, title, org, cv2.FONT_HERSHEY_DUPLEX, 3.0, (34, 30, 150), 6, cv2.LINE_AA)
     (sw, sh), _ = cv2.getTextSize(subtitle, cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)
     cv2.putText(frame, subtitle, ((w - sw) // 2, org[1] + sh + 26), cv2.FONT_HERSHEY_SIMPLEX,
-                0.85, (235, 235, 240), 2, cv2.LINE_AA)
+                0.85, (180, 186, 192), 2, cv2.LINE_AA)
 
 
 # ----------------------------------------------------------------- drawing ----
@@ -234,7 +234,7 @@ class Drawing:
         self.color = DRAW_COLORS[0]
         self.thickness = 6
         self.lifetime = 10.0       # seconds; 0 = keep until cleared
-        self.glow = True
+        self.glow = False
 
     def clear(self):
         self.strokes.clear()
