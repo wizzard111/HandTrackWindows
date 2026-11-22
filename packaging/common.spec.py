@@ -17,12 +17,13 @@ if EXTRA_DATAS:
     datas += EXTRA_DATAS
 datas += collect_data_files("mediapipe", includes=["**/*.binarypb", "**/*.tflite", "**/*.txt"])
 
-# Not used at runtime. matplotlib is replaced by an inert stub in engine.py
+# Not used at runtime (tests/test_packaging.py checks the app imports none of
+# them). matplotlib is replaced by an inert stub in engine.py
 # (mediapipe imports it only for a debug plot helper); Pillow is not needed.
 EXCLUDES = [
     "matplotlib", "PIL", "tkinter", "scipy", "pandas", "IPython", "jax", "jaxlib", "torch",
     "tensorflow", "sounddevice", "unittest", "pydoc", "doctest", "pdb", "lib2to3", "xmlrpc",
-    "sqlite3", "curses", "PySide6.QtNetwork", "PySide6.QtQml", "PySide6.QtQuick",
+    "sqlite3", "curses", "PySide6.QtQml", "PySide6.QtQuick",
     "PySide6.QtWebEngineCore", "PySide6.QtMultimedia", "PySide6.QtPdf", "PySide6.QtSql",
     "PySide6.QtOpenGL", "PySide6.QtDBus",
 ] + EXTRA_EXCLUDES
