@@ -11,7 +11,7 @@ def test_settings_roundtrip_and_v6_migration(tmp_path, monkeypatch):
     }), encoding="utf-8")
     s = config.Settings.load()
     assert s.hide_face is True and s.threshold == 0.8
-    assert s.resolution == "1920x1080" and s.lang == "en"
+    assert s.resolution == "1920x1080"
     s.gaze = False
     s.save()
     again = config.Settings.load()

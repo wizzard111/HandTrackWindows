@@ -108,7 +108,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.settings = settings
         self.engine = engine
-        self.tr = Translator(settings.lang)
+        self.tr = Translator()
         self.custom_gestures = config.load_custom_gestures()
         self.engine.custom_gestures = list(self.custom_gestures)
         self.engine.classifier.set_templates(config.load_hand_templates())
@@ -207,11 +207,9 @@ class MainWindow(QMainWindow):
         theme_btn.setFixedWidth(44)
         theme_btn.setToolTip(tr("theme_dark"))
         theme_btn.clicked.connect(lambda: self._set_theme(not self.settings.dark_mode))
-        lang_btn = Button("EN" if s.lang == "ru" else "RU", "globe", "ghost")
-        lang_btn.clicked.connect(lambda: self._set_lang("en" if self.settings.lang == "ru" else "ru"))
         bottom = QHBoxLayout()
         bottom.addWidget(theme_btn)
-        bottom.addWidget(lang_btn, 1)
+        bottom.addStretch(1)
         side.addLayout(bottom)
         layout.addWidget(sidebar)
 
@@ -268,7 +266,8 @@ class MainWindow(QMainWindow):
         cam.camera_combo.currentIndexChanged.connect(self._on_camera_changed)
         cam.res_combo.currentIndexChanged.connect(self._on_resolution_changed)
         cam.preview.sizeChanged.connect(lambda w, h: setattr(self.engine, "preview_size", (w, h)))
-        cam.preview.framePainted.connect(self.engine.preview_consumed)
+        # Direct: only clears a flag, and must never depend on the engine's thread.
+        cam.preview.framePainted.connect(self.engine.preview_consumed, Qt.ConnectionType.DirectConnection)
         cam.driver_btn.clicked.connect(self._install_driver)
         pref.driver_btn.clicked.connect(self._install_driver)
 
@@ -291,7 +290,6 @@ class MainWindow(QMainWindow):
         cal.hand_reset_btn.clicked.connect(self._reset_hand_calibration)
 
         pref.theme_row.toggle.toggled.connect(self._set_theme)
-        pref.lang_switch.changed.connect(lambda i: self._set_lang("ru" if i == 0 else "en"))
         pref.open_data_btn.clicked.connect(lambda: self._open(paths.DATA_DIR))
 
     # ===================================================== settings binding ====
@@ -354,15 +352,6 @@ class MainWindow(QMainWindow):
         theme.set_dark(dark)
         QApplication.instance().setStyleSheet(theme.stylesheet())
         set_dark_title_bar(self, dark)
-        self._save_timer.start()
-        QTimer.singleShot(0, self._crossfade_rebuild)
-
-    def _set_lang(self, lang):
-        if lang == self.settings.lang:
-            return
-        self.settings.lang = lang
-        self.tr.lang = lang
-        self.engine.set_afk_text(self.tr("afk_text"), self.tr("afk_subtext"))
         self._save_timer.start()
         QTimer.singleShot(0, self._crossfade_rebuild)
 

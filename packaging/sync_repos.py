@@ -16,7 +16,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHARED_DIRS = ("src", "tests", "docs")
 SHARED_FILES = ("LICENSE", ".gitattributes", ".gitignore",
                 "packaging/common.spec.py", "packaging/fetch_deps.py", "packaging/launcher.py",
-                "packaging/make_icon.py", "packaging/requirements.txt", "packaging/requirements-dev.txt")
+                "packaging/make_icon.py", "packaging/make_screenshots.py", "packaging/requirements.txt",
+                "packaging/requirements-dev.txt")
 IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest_cache")
 
 

@@ -4,92 +4,79 @@
 
 # HANDTRACK — Windows
 
-**Жесты, взгляд, скрытие лица и рисование в воздухе — прямо в ваших звонках.**
-Своя виртуальная камера для Discord, Telegram, Zoom, Google Meet, Teams, Skype и OBS. Без OBS.
+**Gestures, gaze, face hiding and drawing in the air, right inside your calls.**
+Its own virtual camera for Discord, Telegram, Zoom, Google Meet, Teams, Skype and OBS. No OBS needed.
 
 *In collaboration with [Claude](https://claude.ai).*
 
-[⬇ Скачать](../../releases/latest) · [Пошаговая установка](HOW-TO-INSTALL.txt) · [Linux](https://github.com/OWNER/HandTrackLinux) · [macOS](https://github.com/OWNER/HandTrackMac) · [English](#english)
+[⬇ Download](../../releases/latest) · [Step-by-step install](HOW-TO-INSTALL.txt) · [Linux](https://github.com/OWNER/HandTrackLinux) · [macOS](https://github.com/OWNER/HandTrackMac)
 
 <img src="docs/screenshots/live.png" width="880" alt="HandTrack">
 
 </div>
 
-## Установка за минуту
+## Install in a minute
 
-1. [Releases](../../releases/latest) → скачайте **HandTrack-windows.zip** и распакуйте.
-2. Дважды щёлкните **Install HandTrack.bat**. На синем окне SmartScreen: «Подробнее» → «Выполнить в любом случае»; на запрос Windows: «Да».
-3. HandTrack появится в меню «Пуск». В звонке выберите камеру **HandTrack Camera**.
+1. [Releases](../../releases/latest) → download **HandTrack-windows.zip** and unzip it.
+2. Double-click **Install HandTrack.bat**. On the blue SmartScreen window: "More info" → "Run anyway"; on the Windows prompt: "Yes".
+3. HandTrack appears in the Start menu. In your call, pick the camera **HandTrack Camera**.
 
-Подробно, с картинками ошибок и решениями — в [HOW-TO-INSTALL.txt](HOW-TO-INSTALL.txt).
-Удаление — **Uninstall HandTrack.bat**, «Пуск → Uninstall HandTrack» или «Параметры → Приложения».
+The full walkthrough, with common problems and fixes, is in [HOW-TO-INSTALL.txt](HOW-TO-INSTALL.txt).
+Uninstall with **Uninstall HandTrack.bat**, "Start → Uninstall HandTrack" or "Settings → Apps".
+Running the installer again only adds what is missing or changed.
 
-> Можно скачать и просто код (Code → Download ZIP): тот же установщик сам поставит
-> изолированный Python 3.12 и все библиотеки в папку программы — ничего не нужно ставить вручную.
+> You can also download just the code (Code → Download ZIP): the same installer sets up an
+> isolated Python 3.12 and all libraries inside the program folder. Nothing to install by hand.
 
-## Что умеет
+## Features
 
-- **HandTrack Camera** — своя виртуальная камера (драйвер ставится вместе с программой). Разрешение подстраивается само, картинка не растягивается. Пока камеру никто не смотрит, кадры почти не отправляются — CPU отдыхает.
-- **Скрыть лицо** — чёрная маска с красным щитом; при потере лица закрывается весь кадр. В программе в это время мигает плашка **COVERING**.
-- **Рисование щипком** — линии с плавным исчезновением, сглаживанием дрожи, выбором цвета, толщины и времени жизни; очистка кнопкой или жестом.
-- **Мои жесты** — любая комбинация пальцев → горячие клавиши, медиа, громкость, программы, ссылки, скриншот, скрытие лица, очистка рисунка.
-- **Фото на жестах** — покажите 1–5 пальцев, и к руке «прилипнет» ваша картинка.
-- **Трекинг взгляда** с калибровкой по 9 точкам, **авто-AFK**, калибровка жестов под вашу руку.
-- Тёмная и светлая темы, русский и английский.
+- **HandTrack Camera**: its own virtual camera (the driver is installed with the app). The resolution adapts by itself and the picture is never stretched. While nobody watches the camera, almost no frames are sent, so the CPU rests.
+- **Hide face**: a black mask with a red shield; if the face is lost, the whole frame is covered. The app shows a blinking **COVERING** badge meanwhile.
+- **Pinch drawing**: lines that fade out smoothly, with jitter smoothing and a choice of colour, thickness and lifetime; clear them with a button or a gesture.
+- **My gestures**: any finger combination → hotkeys, media, volume, programs, links, a screenshot, face hiding, clearing the drawing.
+- **Photos on gestures**: show 1–5 fingers and your picture "sticks" to your hand.
+- **Gaze tracking** with 9-point calibration, **auto-AFK**, gesture calibration for your hand.
+- Dark and light themes.
 
 <table><tr>
-<td><img src="docs/screenshots/gestures.png" alt="Мои жесты"></td>
-<td><img src="docs/screenshots/effects.png" alt="Эффекты"></td>
+<td><img src="docs/screenshots/gestures.png" alt="My gestures"></td>
+<td><img src="docs/screenshots/effects.png" alt="Effects"></td>
 </tr></table>
 
-## Устройство репозитория
+## Repository layout
 
 ```
-Install HandTrack.bat     установщик (единственное, что нужно запускать)
-Uninstall HandTrack.bat   деинсталлятор
-HOW-TO-INSTALL.txt        пошаговая инструкция
-src/handtrack/            программа: engine, vision, vcam, ui, …
-packaging/                сборка: windows/, общая спецификация PyInstaller, загрузка моделей и драйвера
-tests/                    тесты (python -m pytest)
-docs/                     скриншоты, сторонние лицензии
+Install HandTrack.bat     the installer (the only thing you need to run)
+Uninstall HandTrack.bat   the uninstaller
+HOW-TO-INSTALL.txt        step-by-step guide
+src/handtrack/            the program: engine, vision, vcam, ui, …
+packaging/                build: windows/, shared PyInstaller spec, model and driver download
+tests/                    tests (python -m pytest)
+docs/                     screenshots, third-party licenses
 ```
 
-Linux- и macOS-версии лежат в своих репозиториях с тем же кодом и своими установщиками.
+The Linux and macOS versions live in their own repositories with the same code and their own installers.
 
-### Разработка
+### Development
 
 ```powershell
 python -m venv .venv; .venv\Scripts\activate
 pip install -r packaging\requirements-dev.txt
-$env:PYTHONPATH = "src"; python -m handtrack        # запуск
-python -m pytest                                    # тесты
-powershell -ExecutionPolicy Bypass -File packaging\windows\build.ps1   # релиз dist\HandTrack-windows.zip
+$env:PYTHONPATH = "src"; python -m handtrack        # run
+python -m pytest                                    # tests
+powershell -ExecutionPolicy Bypass -File packaging\windows\build.ps1   # release dist\HandTrack-windows.zip
 ```
 
-GitHub Actions собирает и проверяет релиз на каждый push; тег `v*` публикует его в Releases.
+GitHub Actions builds and checks the release on every push; a `v*` tag publishes it to Releases.
 
-## Производительность
+## Performance
 
-Обработка идёт в отдельном потоке, нейросети — асинхронно, интерфейс никогда не ждёт камеру.
-Кадр не конвертируется для превью и камеры (Qt и драйвер берут BGR напрямую), стикеры
-смешиваются целочисленно, рисунок выводится прямо в кадр без попиксельного смешивания (рисунок
-на весь кадр: 0,9 мс вместо 26), превью не готовится, пока его не видно.
+Processing runs on its own thread and the neural networks run asynchronously, so the interface
+never waits for the camera. Frames are not converted for the preview or the camera (Qt and the
+driver take BGR directly), stickers are blended with integer maths, the drawing is rendered
+straight into the frame without per-pixel blending (a full-frame drawing: 0.9 ms instead of
+26 ms), and no preview is prepared while it is not visible.
 
-## Лицензия
+## License
 
-[MIT](LICENSE). Сторонние компоненты — [docs/THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md).
-
----
-
-<a id="english"></a>
-
-## English
-
-HandTrack recognises hand gestures, tracks gaze, hides your face and lets you draw neon lines in
-the air, then streams the result to its own **HandTrack Camera** for Discord, Telegram, Zoom,
-Meet, Teams, Skype and OBS — no OBS needed.
-
-**Install:** download **HandTrack-windows.zip** from [Releases](../../releases/latest), unzip, double-click
-**Install HandTrack.bat** (SmartScreen: "More info" → "Run anyway"; Windows prompt: "Yes").
-Pick **HandTrack Camera** in your call app. Remove it with **Uninstall HandTrack.bat**.
-Step by step: [HOW-TO-INSTALL.txt](HOW-TO-INSTALL.txt).
+[MIT](LICENSE). Third-party components: [docs/THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md).

@@ -1,139 +1,109 @@
 =====================================================================
-  HANDTRACK ДЛЯ WINDOWS — ПОШАГОВАЯ УСТАНОВКА
-  (English version below)
-=====================================================================
-
-HandTrack распознаёт жесты рук, может скрыть ваше лицо, рисовать в воздухе
-и показывает всё это в звонках через виртуальную камеру «HandTrack Camera»
-(Discord, Telegram, Zoom, Google Meet, Teams, Skype, OBS).
-
-Нужно: Windows 10 или 11 (64-бит), веб-камера, интернет на время установки.
-
-
----------------------------------------------------------------------
-ШАГ 1. СКАЧАЙТЕ
----------------------------------------------------------------------
-
-  Вариант А (проще и быстрее):
-    1. Откройте страницу Releases этого репозитория (справа на GitHub).
-    2. Скачайте файл  HandTrack-windows.zip
-
-  Вариант Б (если Releases пустые):
-    1. На главной странице репозитория нажмите зелёную кнопку «Code»
-       -> «Download ZIP».
-    Установщик сам скачает всё нужное (~400 МБ, 2-5 минут).
-
-
----------------------------------------------------------------------
-ШАГ 2. РАСПАКУЙТЕ
----------------------------------------------------------------------
-
-  1. Нажмите на скачанный ZIP правой кнопкой -> «Извлечь всё...» -> «Извлечь».
-  2. Откройте появившуюся папку. В ней:
-       Install HandTrack.bat     <- установщик
-       Uninstall HandTrack.bat   <- удаление
-       HOW-TO-INSTALL.txt        <- эта инструкция
-
-
----------------------------------------------------------------------
-ШАГ 3. ЗАПУСТИТЕ УСТАНОВЩИК
----------------------------------------------------------------------
-
-  1. Дважды щёлкните  Install HandTrack.bat
-
-  2. Если появится синее окно «Windows защитила ваш компьютер» —
-     нажмите «Подробнее», затем «Выполнить в любом случае».
-     (Программа бесплатная и не подписана платным сертификатом,
-     поэтому Windows её не знает. Это нормально.)
-
-  3. Откроется чёрное окно с шагами установки. На вопрос
-     «Ярлык на рабочем столе?» нажмите Enter (= да).
-
-  4. Windows спросит «Разрешить этому приложению вносить изменения?» —
-     нажмите «Да». Это устанавливает виртуальную камеру
-     «HandTrack Camera». Больше прав программа не попросит.
-
-  5. Когда появится «ГОТОВО», HandTrack запустится сам.
-     Дальше открывайте его из меню «Пуск»: HandTrack.
-
-
----------------------------------------------------------------------
-ШАГ 4. ПОЛЬЗУЙТЕСЬ
----------------------------------------------------------------------
-
-  1. Нажмите «СТАРТ» — появится изображение с камеры.
-  2. Включите «Транслировать в виртуальную камеру».
-  3. В Discord / Telegram / Zoom откройте настройки видео и выберите
-     камеру  «HandTrack Camera».
-     Если её нет в списке — полностью закройте это приложение
-     (и в трее у часов) и откройте снова.
-
-  Полезное:
-    * «Скрыть лицо» — чёрная маска на лице и значок COVERING.
-    * Рисование: соедините большой и указательный пальцы и ведите рукой.
-      Цвет, толщину и время жизни линий меняйте во вкладке «Эффекты».
-    * «Мои жесты» — назначьте комбинацию пальцев на клавиши, музыку,
-      громкость или запуск программ.
-
-
----------------------------------------------------------------------
-УДАЛЕНИЕ
----------------------------------------------------------------------
-
-  Любой способ:
-    * дважды щёлкните  Uninstall HandTrack.bat;
-    * Пуск -> «Uninstall HandTrack»;
-    * Параметры -> Приложения -> HandTrack -> Удалить.
-  Деинсталлятор спросит, удалять ли настройки, и уберёт драйвер камеры
-  (Windows ещё раз спросит разрешение — нажмите «Да»).
-
-
----------------------------------------------------------------------
-ЕСЛИ ЧТО-ТО НЕ ТАК
----------------------------------------------------------------------
-
-  * «Не удалось открыть веб-камеру» — камеру занял другой звонок или
-    программа. Закройте её или выберите в HandTrack «Камера 2».
-  * В звонке чёрный экран с надписью HANDTRACK — в HandTrack не нажат
-    «Старт» или выключена трансляция.
-  * Переустановка и удаление работают даже при открытых Discord, Telegram,
-    Zoom и браузере: занятый файл драйвера откладывается и удаляется
-    позже (при следующей установке или при следующем входе в Windows).
-  * Что-то сломалось или пропало — просто запустите установку ещё раз:
-    она проверит, чего не хватает, и поставит только это, ничего
-    не перекачивая и не перезаписывая.
-  * Журнал установки: %TEMP%\handtrack-install.log
-    Журнал программы: %APPDATA%\HandTrack\logs\handtrack.log
-
-
-=====================================================================
   HANDTRACK FOR WINDOWS — STEP BY STEP
 =====================================================================
 
-You need Windows 10 or 11 (64-bit), a webcam, and internet during setup.
+HandTrack recognises hand gestures, can hide your face, lets you draw
+in the air and shows all of it in your calls through its own virtual
+camera "HandTrack Camera" (Discord, Telegram, Zoom, Google Meet, Teams,
+Skype, OBS).
 
+You need: Windows 10 or 11 (64-bit), a webcam, internet during setup.
+
+
+---------------------------------------------------------------------
 STEP 1. DOWNLOAD
-  Releases page -> HandTrack-windows.zip
-  (or the green "Code" button -> "Download ZIP"; the installer then
-  downloads what it needs, ~400 MB, 2-5 minutes).
+---------------------------------------------------------------------
 
+  Option A (simpler and faster):
+    1. Open this repository's Releases page (on the right on GitHub).
+    2. Download  HandTrack-windows.zip
+
+  Option B (if Releases is empty):
+    1. On the repository's main page click the green "Code" button
+       -> "Download ZIP".
+    The installer then downloads what it needs (~400 MB, 2-5 minutes).
+
+
+---------------------------------------------------------------------
 STEP 2. UNZIP
-  Right-click the ZIP -> "Extract All..." -> "Extract", open the folder.
+---------------------------------------------------------------------
 
-STEP 3. INSTALL
-  1. Double-click "Install HandTrack.bat".
-  2. Blue "Windows protected your PC" window: "More info" -> "Run anyway"
-     (the free app is not signed with a paid certificate).
-  3. A black window shows each step. Press Enter for a desktop shortcut.
-  4. "Do you want to allow this app to make changes?" -> "Yes".
-     This installs the "HandTrack Camera" virtual camera.
-  5. When it says DONE, HandTrack starts. Later: Start menu -> HandTrack.
+  1. Right-click the downloaded ZIP -> "Extract All..." -> "Extract".
+  2. Open the new folder. It contains:
+       Install HandTrack.bat     <- the installer
+       Uninstall HandTrack.bat   <- the uninstaller
+       HOW-TO-INSTALL.txt        <- this guide
 
-STEP 4. USE
-  Press START, switch on "Stream to virtual camera", and pick
-  "HandTrack Camera" in the video settings of Discord / Telegram / Zoom.
-  Not listed? Quit that app completely (also from the tray) and reopen it.
 
+---------------------------------------------------------------------
+STEP 3. RUN THE INSTALLER
+---------------------------------------------------------------------
+
+  1. Double-click  Install HandTrack.bat
+
+  2. If a blue "Windows protected your PC" window appears,
+     click "More info", then "Run anyway".
+     (The app is free and not signed with a paid certificate, so
+     Windows does not know it yet. That is normal.)
+
+  3. A black window shows each installation step. When it asks
+     "Desktop shortcut?", press Enter (= yes).
+
+  4. Windows asks "Do you want to allow this app to make changes?" —
+     click "Yes". This installs the "HandTrack Camera" virtual camera.
+     The app never asks for these rights again.
+
+  5. When the window says DONE, HandTrack starts by itself.
+     Later, open it from the Start menu: HandTrack.
+
+
+---------------------------------------------------------------------
+STEP 4. USE IT
+---------------------------------------------------------------------
+
+  1. Press "Start": the camera picture appears.
+  2. Switch on "Stream to virtual camera".
+  3. In Discord / Telegram / Zoom open the video settings and choose
+     the camera  "HandTrack Camera".
+     Not in the list? Quit that app completely (also from the tray
+     next to the clock) and open it again.
+
+  Good to know:
+    * "Hide face" puts a black mask over your face and shows a
+      COVERING badge.
+    * Drawing: pinch your thumb and index finger together and move
+      your hand. Change the colour, thickness and how long lines stay
+      on the "Effects" tab.
+    * "My gestures": map a finger combination to keys, media,
+      volume or launching a program.
+
+
+---------------------------------------------------------------------
 UNINSTALL
-  "Uninstall HandTrack.bat", or Start -> "Uninstall HandTrack", or
-  Settings -> Apps -> HandTrack -> Uninstall.
+---------------------------------------------------------------------
+
+  Any of these:
+    * double-click  Uninstall HandTrack.bat;
+    * Start -> "Uninstall HandTrack";
+    * Settings -> Apps -> HandTrack -> Uninstall.
+  The uninstaller asks whether to delete your settings and removes the
+  camera driver (Windows asks for permission once more — click "Yes").
+
+
+---------------------------------------------------------------------
+IF SOMETHING GOES WRONG
+---------------------------------------------------------------------
+
+  * "Could not open webcam" — another call or program is using the
+    camera. Close it, or pick "Camera 2" in HandTrack.
+  * A black picture saying HANDTRACK in your call — "Start" is not
+    pressed in HandTrack, or streaming is switched off.
+  * Reinstalling and uninstalling work even while Discord, Telegram,
+    Zoom or a browser are open: a camera driver file they hold is set
+    aside and removed later (at the next install or the next Windows
+    sign-in).
+  * Something broke or went missing — just run the installer again.
+    It checks what is missing and installs only that, without
+    downloading or overwriting anything else.
+  * Install log: %TEMP%\handtrack-install.log
+    App log:     %APPDATA%\HandTrack\logs\handtrack.log

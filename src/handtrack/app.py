@@ -79,7 +79,7 @@ def main(argv=None):
         app.setWindowIcon(QIcon(paths.ICON_PATH))
 
     settings = Settings.load()
-    tr = Translator(settings.lang)
+    tr = Translator()
     theme.set_dark(settings.dark_mode)
     theme.load_fonts()
     app.setStyleSheet(theme.stylesheet())
@@ -104,6 +104,10 @@ def main(argv=None):
             from handtrack.engine import Engine  # imports mediapipe (slow)
             engine = Engine(settings)
             engine.create_landmarkers()
+            # The engine was created on this short-lived thread; hand it to the
+            # GUI thread, or queued calls into it (preview_consumed) would be
+            # posted to a dead thread and the preview would freeze on frame 1.
+            engine.moveToThread(app.thread())
             loader.done.emit(engine, None)
         except Exception as exc:  # reported in the GUI thread
             logger.exception("Startup failed")

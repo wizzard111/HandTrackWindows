@@ -586,53 +586,6 @@ class Toast(QWidget):
                    Qt.AlignmentFlag.AlignVCenter, self._text)
 
 
-# ---------------------------------------------------------- segmented ctrl ----
-class Segmented(QWidget):
-    changed = Signal(int)
-
-    def __init__(self, options, index=0):
-        super().__init__()
-        self._options = list(options)
-        self._index = index
-        self._pos = float(index)
-        self.setFixedHeight(30)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._font = theme.mono(8.5, True, 0.8)
-        self._anim = _animator(self, "_pos", 160)
-
-    def set_index(self, index):
-        self._index = index
-        _animate(self._anim, self._pos, float(index))
-
-    def sizeHint(self):
-        w = max(QFontMetrics(self._font).horizontalAdvance(o.upper()) for o in self._options) + 28
-        return QSize(w * len(self._options) + 4, 30)
-
-    def mouseReleaseEvent(self, event):
-        seg = (self.width() - 4) / len(self._options)
-        index = int(max(0, min(len(self._options) - 1, (event.position().x() - 2) // seg)))
-        if index != self._index:
-            self.set_index(index)
-            self.changed.emit(index)
-
-    def paintEvent(self, event):
-        p = QPainter(self)
-        rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-        p.setPen(QPen(theme.c("border"), 1))
-        p.setBrush(theme.c("surface2"))
-        p.drawRect(rect)
-        seg = (rect.width() - 4) / len(self._options)
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(theme.c("accent"))
-        p.drawRect(QRectF(2 + seg * self._pos, 2, seg, rect.height() - 4))
-        p.setFont(self._font)
-        for i, text in enumerate(self._options):
-            closeness = max(0.0, 1 - abs(self._pos - i))
-            p.setPen(theme.mix(theme.c("muted"), theme.c("accent_text"), closeness))
-            p.drawText(QRectF(2 + seg * i, 0, seg, rect.height()), Qt.AlignmentFlag.AlignCenter,
-                       text.upper())
-
-
 class Swatches(QWidget):
     """Row of colour squares; the selected one is framed."""
 

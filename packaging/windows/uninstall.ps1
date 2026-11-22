@@ -16,20 +16,19 @@ $UninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\HandT
 $DataDir = Join-Path $env:APPDATA "HandTrack"
 
 Write-Host "==================================================" -ForegroundColor DarkMagenta
-Write-Host "   H A N D T R A C K   —   удаление / uninstall" -ForegroundColor White
+Write-Host "   H A N D T R A C K   —   uninstall" -ForegroundColor White
 Write-Host "==================================================" -ForegroundColor DarkMagenta
 
 if ($All) { $removeData = $true }
 elseif ($KeepSettings) { $removeData = $false }
 else {
-    Write-Host "Удалить также настройки, калибровку и картинки жестов?"
     Write-Host "Also delete settings, calibration and gesture images?"
     Write-Host "  ($DataDir)"
     $a = Read-Host "[y/N]"
-    $removeData = $a -match '^[YyДд]'
+    $removeData = $a -match '^[Yy]'
 }
 
-Write-Host ">> Закрываю HandTrack / Closing HandTrack" -ForegroundColor Red
+Write-Host ">> Closing HandTrack" -ForegroundColor Red
 Get-Process HandTrack, pythonw, python -ErrorAction SilentlyContinue |
     Where-Object { $_.Path -and $_.Path.StartsWith($InstallDir, [StringComparison]::OrdinalIgnoreCase) } |
     Stop-Process -Force -ErrorAction SilentlyContinue
@@ -55,23 +54,23 @@ foreach ($view in "Registry64", "Registry32") {
 $dlls = @()
 if ($ours) { $dlls = @(Get-ChildItem $InstallDir -Recurse -Filter "UnityCaptureFilter*.dll" -ErrorAction SilentlyContinue) }
 if ($dlls) {
-    Write-Host ">> Удаляю драйвер камеры (подтвердите запрос Windows) / Removing the camera driver" -ForegroundColor Red
+    Write-Host ">> Removing the camera driver (confirm the Windows prompt)" -ForegroundColor Red
     $cmd = ($dlls | ForEach-Object {
         $reg = if ($_.Name -like "*32.dll") { "$env:SystemRoot\SysWOW64\regsvr32.exe" } else { "$env:SystemRoot\System32\regsvr32.exe" }
         "`"$reg`" /u /s `"$($_.FullName)`""
     }) -join " & "
     try { Start-Process cmd.exe -ArgumentList "/c `"$cmd`"" -Verb RunAs -Wait -WindowStyle Hidden }
-    catch { Write-Host "Отменено — драйвер останется зарегистрированным / cancelled" -ForegroundColor Yellow }
+    catch { Write-Host "Cancelled: the driver stays registered." -ForegroundColor Yellow }
 }
 
-Write-Host ">> Удаляю ярлыки и запись в «Приложениях» / Removing shortcuts" -ForegroundColor Red
+Write-Host ">> Removing shortcuts and the Apps entry" -ForegroundColor Red
 foreach ($lnk in (Join-Path $StartMenu "HandTrack.lnk"), (Join-Path $StartMenu "Uninstall HandTrack.lnk"),
                  (Join-Path $Desktop "HandTrack.lnk")) {
     if (Test-Path $lnk) { Remove-Item $lnk -Force }
 }
 if (Test-Path $UninstallKey) { Remove-Item $UninstallKey -Recurse -Force }
 
-Write-Host ">> Удаляю программу / Removing the program" -ForegroundColor Red
+Write-Host ">> Removing the program" -ForegroundColor Red
 if (Test-Path $InstallDir) {
     $self = $PSCommandPath
     if ($self -and $self.StartsWith((Resolve-Path $InstallDir).Path, [StringComparison]::OrdinalIgnoreCase)) {
@@ -89,7 +88,6 @@ if (Test-Path $InstallDir) {
     New-ItemProperty -Path $runOnce -Name "HandTrackCleanup" -PropertyType String -Force `
         -Value "cmd.exe /c rmdir /s /q `"$InstallDir`"" | Out-Null
     if ((-not $self -or -not $self.StartsWith($InstallDir, [StringComparison]::OrdinalIgnoreCase)) -and (Test-Path $InstallDir)) {
-        Write-Host "Файл драйвера камеры ещё занят другой программой — папка дочистится при следующем входе в Windows." -ForegroundColor Yellow
         Write-Host "The camera driver file is still in use — the folder is cleaned up at your next sign-in." -ForegroundColor Yellow
     } elseif (-not (Test-Path $InstallDir)) {
         Remove-ItemProperty -Path $runOnce -Name "HandTrackCleanup" -ErrorAction SilentlyContinue
@@ -97,11 +95,11 @@ if (Test-Path $InstallDir) {
 }
 if ($removeData -and (Test-Path $DataDir)) {
     Remove-Item $DataDir -Recurse -Force
-    Write-Host "Настройки удалены / settings deleted."
+    Write-Host "Settings deleted."
 } elseif (Test-Path $DataDir) {
-    Write-Host "Настройки сохранены / settings kept: $DataDir"
+    Write-Host "Settings kept: $DataDir"
 }
 Write-Host ""
-Write-Host "HandTrack удалён. / HandTrack has been removed." -ForegroundColor Green
-if (-not ($All -or $KeepSettings)) { Read-Host "Enter — закрыть / close" | Out-Null }
+Write-Host "HandTrack has been removed." -ForegroundColor Green
+if (-not ($All -or $KeepSettings)) { Read-Host "Press Enter to close" | Out-Null }
 exit 0

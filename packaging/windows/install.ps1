@@ -33,7 +33,7 @@ $RunOnce = "HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
 $CameraName = "HandTrack Camera"
 
 function Step([string]$text) { Write-Host ""; Write-Host ">> $text" -ForegroundColor Red }
-function Have([string]$text) { Write-Host "   есть / present: $text" -ForegroundColor DarkGray }
+function Have([string]$text) { Write-Host "   present: $text" -ForegroundColor DarkGray }
 function Did([string]$text) { Write-Host "   + $text" -ForegroundColor White }
 # Runs a program with its output hidden and returns its exit code.
 function Invoke-Quiet([string]$exe, [string[]]$argList) {
@@ -44,12 +44,12 @@ function Invoke-Quiet([string]$exe, [string[]]$argList) {
 function Ask([string]$q) {
     if ($Yes) { return $true }
     $a = Read-Host "$q [Y/n]"
-    return (-not $a) -or ($a -match '^[YyДд]')
+    return (-not $a) -or ($a -match '^[Yy]')
 }
 function Fail([string]$text) {
     Write-Host ""
-    Write-Host "ОШИБКА УСТАНОВКИ / INSTALL FAILED: $text" -ForegroundColor Red
-    Write-Host "Журнал / log: $log"
+    Write-Host "INSTALL FAILED: $text" -ForegroundColor Red
+    Write-Host "Log: $log"
     try { Stop-Transcript | Out-Null } catch { }
     exit 1
 }
@@ -63,7 +63,7 @@ function Remove-OneFile($file) {
     catch {
         if ($file.Name -like "*.old-*") { return }          # still locked from an earlier update
         try { Rename-Item -LiteralPath $file.FullName "$($file.Name).old-$(Get-Random)" -ErrorAction Stop }
-        catch { Fail "не удаётся заменить файл / cannot replace a file: $($file.FullName)" }
+        catch { Fail "cannot replace a file: $($file.FullName)" }
     }
 }
 function Remove-EmptyDirs([string]$path) {
@@ -118,12 +118,12 @@ function Sync-Tree([string]$src, [string]$dst, [string[]]$keepTop = @()) {
     return @($copied, $removed)
 }
 function Show-Sync([string]$what, $result) {
-    if ($result[0] -or $result[1]) { Did "$what — обновлено файлов / files updated: $($result[0]), удалено / removed: $($result[1])" }
-    else { Have "$what — без изменений / up to date" }
+    if ($result[0] -or $result[1]) { Did "$what — files updated: $($result[0]), removed: $($result[1])" }
+    else { Have "$what — up to date" }
 }
 
 Write-Host "==================================================" -ForegroundColor DarkMagenta
-Write-Host "   H A N D T R A C K   —   установка / installer" -ForegroundColor White
+Write-Host "   H A N D T R A C K   —   installer" -ForegroundColor White
 Write-Host "==================================================" -ForegroundColor DarkMagenta
 
 # ------------------------------------------------------------ 1. close a running copy
@@ -136,7 +136,7 @@ Start-Sleep -Milliseconds 400
 # it would wipe this install, so cancel it.
 Remove-ItemProperty -Path $RunOnce -Name "HandTrackCleanup" -ErrorAction SilentlyContinue
 
-Step "Проверяю, что уже установлено / Checking what is already installed"
+Step "Checking what is already installed"
 if (Test-Path $InstallDir) {
     $prev = (Get-ItemProperty $UninstallKey -ErrorAction SilentlyContinue).DisplayVersion
     Have "$InstallDir$(if ($prev) { "  (v$prev)" })"
@@ -144,13 +144,13 @@ if (Test-Path $InstallDir) {
     Get-ChildItem -LiteralPath $InstallDir -Recurse -Force -File -Filter "*.old-*" -ErrorAction SilentlyContinue |
         ForEach-Object { Remove-OneFile $_ }
 } else {
-    Did "новая установка / fresh install: $InstallDir"
+    Did "fresh install: $InstallDir"
 }
 New-Item -ItemType Directory -Force $InstallDir | Out-Null
 
 # ------------------------------------------------------------ 2. the program
 if ($isRelease) {
-    Step "Программа / The program"
+    Step "The program"
     # Mirrors the whole folder; a source-code install (app, runtime...) is replaced.
     Show-Sync "HandTrack.exe" (Sync-Tree (Join-Path $here "HandTrack") $InstallDir @("uninstall.ps1", "HandTrack-*.ico"))
     $target = Join-Path $InstallDir "HandTrack.exe"
@@ -164,7 +164,7 @@ if ($isRelease) {
     # A release install leaves HandTrack.exe and _internal behind.
     foreach ($n in "HandTrack.exe", "_internal") { Remove-Tree (Join-Path $InstallDir $n) }
 
-    Step "Python 3.12 и библиотеки / Python 3.12 and libraries"
+    Step "Python 3.12 and libraries"
     $runtime = Join-Path $InstallDir "runtime"
     $uv = Join-Path $runtime "uv.exe"
     if (Test-Path $uv) { Have "uv" } else {
@@ -177,7 +177,7 @@ if ($isRelease) {
             New-Item -ItemType Directory -Force $runtime | Out-Null
             Copy-Item (Join-Path $uvDir "uv.exe") $uv -Force
             Remove-Item $uvZip, $uvDir -Recurse -Force -ErrorAction SilentlyContinue
-        } catch { Fail "не удалось скачать uv / could not download uv: $_" }
+        } catch { Fail "could not download uv: $_" }
         Did "uv"
     }
     $env:UV_PYTHON_INSTALL_DIR = Join-Path $runtime "python"
@@ -188,7 +188,7 @@ if ($isRelease) {
         $pyOk = (Invoke-Quiet $py @("-c", "import sys; sys.exit(0 if sys.version_info[:2] == (3, 12) else 1)")) -eq 0
     }
     if ($pyOk) { Have "Python 3.12" } else {
-        Write-Host "   Ставлю Python 3.12 (первый раз ~1 минута) / Installing Python 3.12"
+        Write-Host "   Installing Python 3.12 (first time ~1 minute)"
         & $uv venv --clear --python 3.12 $venv
         if ($LASTEXITCODE -ne 0) { Fail "uv venv" }
         Did "Python 3.12"
@@ -196,17 +196,17 @@ if ($isRelease) {
     # Offline first: succeeds without the network when every library is already
     # installed (or cached); only otherwise download what is missing.
     $req = Join-Path $root "packaging\requirements.txt"
-    if ((Invoke-Quiet $uv @("pip", "install", "--offline", "--quiet", "--python", $py, "-r", $req)) -eq 0) { Have "библиотеки / libraries" } else {
-        Write-Host "   Докачиваю библиотеки (первый раз ~2-5 минут) / Downloading libraries"
+    if ((Invoke-Quiet $uv @("pip", "install", "--offline", "--quiet", "--python", $py, "-r", $req)) -eq 0) { Have "libraries" } else {
+        Write-Host "   Downloading libraries (first time ~2-5 minutes)"
         & $uv pip install --python $py -r $req
         if ($LASTEXITCODE -ne 0) { Fail "pip install" }
-        Did "библиотеки / libraries"
+        Did "libraries"
     }
 
-    Step "Программа / The program"
+    Step "The program"
     Show-Sync "app" (Sync-Tree (Join-Path $root "src") (Join-Path $InstallDir "app"))
 
-    Step "Модели и драйвер камеры / Models and the camera driver"
+    Step "Models and the camera driver"
     # Downloads only missing files; the driver is checked against its SHA-256.
     $env:PYTHONPATH = Join-Path $InstallDir "app"
     & $py (Join-Path $root "packaging\fetch_deps.py") $InstallDir
@@ -237,7 +237,7 @@ if (-not (Test-Path $icon)) { Copy-Item -LiteralPath $iconSource $icon -Force }
 Get-ChildItem -LiteralPath $InstallDir -Filter "HandTrack-*.ico" | Where-Object { $_.FullName -ne $icon } |
     ForEach-Object { Remove-OneFile $_ }
 
-Step "Проверка программы / Self-test"
+Step "Self-test"
 & $selfTest
 if ($LASTEXITCODE -ne 0) { Fail "self-test" }
 Did "OK"
@@ -253,24 +253,24 @@ function Test-Filter([string]$clsidKey, [string]$dll) {
 }
 $registered = (Test-Filter "HKLM:\SOFTWARE\Classes\CLSID\{5C2CD55C-92AD-4999-8666-912BD3E70010}" $dll64) -and
     (-not (Test-Path $dll32) -or (Test-Filter "HKLM:\SOFTWARE\WOW6432Node\Classes\CLSID\{5C2CD55C-92AD-4999-8666-912BD3E70020}" $dll32))
-Step "Драйвер виртуальной камеры «$CameraName» / Virtual camera driver"
-if ($NoDriver) { Write-Host "   (пропущен / skipped)" }
-elseif ($registered) { Have "«$CameraName»" }
+Step "Virtual camera driver"
+if ($NoDriver) { Write-Host "   (skipped)" }
+elseif ($registered) { Have "'$CameraName'" }
 else {
-    Write-Host "   Подтвердите запрос Windows / Confirm the Windows prompt"
+    Write-Host "   Confirm the Windows prompt"
     $cmd = "`"$env:SystemRoot\System32\regsvr32.exe`" /s `"/i:UnityCaptureName=$CameraName`" `"$dll64`""
     if (Test-Path $dll32) { $cmd += " && `"$env:SystemRoot\SysWOW64\regsvr32.exe`" /s `"/i:UnityCaptureName=$CameraName`" `"$dll32`"" }
     try {
         $p = Start-Process cmd.exe -ArgumentList "/c `"$cmd`"" -Verb RunAs -Wait -PassThru -WindowStyle Hidden
-        if ($p.ExitCode -eq 0) { Did "«$CameraName»" }
-        else { Write-Host "regsvr32: код $($p.ExitCode). Позже: HandTrack > Настройки > Установить драйвер." -ForegroundColor Yellow }
+        if ($p.ExitCode -eq 0) { Did "'$CameraName'" }
+        else { Write-Host "regsvr32 exit code $($p.ExitCode). Install it later: HandTrack > Settings > Install driver." -ForegroundColor Yellow }
     } catch {
-        Write-Host "Запрос прав отклонён — камеру можно поставить позже: HandTrack > Настройки > Установить драйвер." -ForegroundColor Yellow
+        Write-Host "Permission declined. Install the camera later: HandTrack > Settings > Install driver." -ForegroundColor Yellow
     }
 }
 
 # ------------------------------------------------------------ 4. shortcuts + Apps entry
-Step "Ярлыки и «Приложения» / Shortcuts and the Apps entry"
+Step "Shortcuts and the Apps entry"
 $shell = New-Object -ComObject WScript.Shell
 $workDir = if ($isRelease) { $InstallDir } else { Join-Path $InstallDir "app" }
 # Writes the shortcut only when it is missing or points somewhere else.
@@ -283,7 +283,7 @@ function Set-Shortcut([string]$path, [string]$tgt, [string]$argLine, [string]$wd
     $s.TargetPath = $tgt; $s.Arguments = $argLine; $s.WorkingDirectory = $wd
     $s.IconLocation = $ico; $s.Description = $desc
     $s.Save()
-    Did "$(Split-Path $path -Leaf)$(if ($exists) { ' (обновлён / updated)' })"
+    Did "$(Split-Path $path -Leaf)$(if ($exists) { ' (updated)' })"
     $script:iconsChanged = $true
 }
 $iconsChanged = $false
@@ -293,7 +293,7 @@ Set-Shortcut (Join-Path $StartMenu "Uninstall HandTrack.lnk") "$env:SystemRoot\S
     "-NoProfile -ExecutionPolicy Bypass -File `"$uninstallPs1`"" "" "$env:SystemRoot\System32\shell32.dll,31" "Uninstall HandTrack"
 $desktopLnk = Join-Path $Desktop "HandTrack.lnk"
 if (Test-Path $desktopLnk) { Set-Shortcut $desktopLnk @appArgs }
-elseif (Ask "Ярлык на рабочем столе? / Desktop shortcut?") { Set-Shortcut $desktopLnk @appArgs }
+elseif (Ask "Desktop shortcut?") { Set-Shortcut $desktopLnk @appArgs }
 # Ask Explorer to redraw shortcut icons now rather than after a restart.
 if ($iconsChanged) {
     try { Start-Process "$env:SystemRoot\System32\ie4uinit.exe" -ArgumentList "-show" -Wait -WindowStyle Hidden } catch { }
@@ -315,16 +315,15 @@ foreach ($k in $props.Keys) { New-ItemProperty -Path $UninstallKey -Name $k -Val
 foreach ($k in "NoModify", "NoRepair") { New-ItemProperty -Path $UninstallKey -Name $k -Value 1 -PropertyType DWord -Force | Out-Null }
 $kb = [int]((Get-ChildItem $InstallDir -Recurse -File | Measure-Object Length -Sum).Sum / 1KB)
 New-ItemProperty -Path $UninstallKey -Name EstimatedSize -Value $kb -PropertyType DWord -Force | Out-Null
-Have "«Параметры > Приложения» / Settings > Apps: HandTrack $version"
+Have "Settings > Apps: HandTrack $version"
 
 # ------------------------------------------------------------ 5. start
 if (-not $NoLaunch) {
-    Step "Запускаю HandTrack / Starting HandTrack"
+    Step "Starting HandTrack"
     if ($arguments) { Start-Process $target -ArgumentList $arguments -WorkingDirectory $workDir }
     else { Start-Process $target -WorkingDirectory $workDir }
 }
 Write-Host ""
-Write-Host "ГОТОВО. HandTrack в меню «Пуск». Камера для звонков: «$CameraName»." -ForegroundColor Green
 Write-Host "DONE. Find HandTrack in the Start menu. Camera for calls: '$CameraName'." -ForegroundColor Green
 try { Stop-Transcript | Out-Null } catch { }
 exit 0

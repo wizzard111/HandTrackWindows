@@ -13,7 +13,7 @@ from handtrack.config import ACTION_KEYS, RESOLUTIONS
 from handtrack.ui import theme
 from handtrack.ui.visuals import FingerChips, GazeMap, HandDiagram, PreviewWidget
 from handtrack.ui.widgets import (
-    Button, Card, Pill, Segmented, SettingRow, SliderRow, Swatches, Toggle, heading, hline, label,
+    Button, Card, Pill, SettingRow, SliderRow, Swatches, Toggle, heading, hline, label,
     tag_label,
 )
 
@@ -448,12 +448,6 @@ class SettingsPage(QWidget):
         look = Card(tr("sec_appearance"), "moon")
         self.theme_row = SettingRow(tr("theme_dark"), None, s.dark_mode)
         look.body.addWidget(self.theme_row)
-        lang = QHBoxLayout()
-        lang.addWidget(label(tr("language")))
-        lang.addStretch(1)
-        self.lang_switch = Segmented(["Русский", "English"], 0 if s.lang == "ru" else 1)
-        lang.addWidget(self.lang_switch)
-        look.body.addLayout(lang)
         col.addWidget(look)
 
         drv = Card(tr("sec_vcam"), "camera")

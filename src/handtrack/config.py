@@ -79,7 +79,6 @@ class Settings:
     draw_lifetime: float = 10.0     # seconds, 0 = until cleared
     afk_enabled: bool = True
     afk_timeout: float = 8.0
-    lang: str = "ru"
     custom_gestures_enabled: bool = True
     camera_index: int = 0
 
@@ -99,8 +98,6 @@ class Settings:
             except (TypeError, ValueError):
                 continue
             setattr(settings, field.name, value)
-        if settings.lang not in ("ru", "en"):
-            settings.lang = "ru"
         if settings.resolution not in RESOLUTIONS:
             settings.resolution = "1280x720"
         return settings
@@ -114,15 +111,6 @@ class Settings:
             return int(width), int(height)
         except ValueError:
             return 1280, 720
-
-
-def load_saved_lang():
-    data = _read_json(paths.SETTINGS_PATH)
-    if isinstance(data, dict):
-        lang = data.get("lang", data.get("lang_var"))
-        if lang in ("ru", "en"):
-            return lang
-    return "ru"
 
 
 # ------------------------------------------------------------- calibration ----
