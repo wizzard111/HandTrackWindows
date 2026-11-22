@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+models/
+logs/
+screenshots/
+app_settings.json
+custom_gestures.json
+gaze_calibration.json
+hand_calibration.json
