@@ -5,7 +5,9 @@ import math
 
 import cv2
 import numpy as np
-from PySide6.QtCore import QEasingCurve, QPointF, QRectF, QSize, Qt, QTimer, QVariantAnimation, Signal
+from PySide6.QtCore import (
+    QEasingCurve, QElapsedTimer, QPointF, QRectF, QSize, Qt, QTimer, QVariantAnimation, Signal,
+)
 from PySide6.QtGui import QColor, QImage, QPainter, QPainterPath, QPen, QPixmap, QPolygonF
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
@@ -25,53 +27,46 @@ def shield_path(cx, cy, r):
 
 
 def paint_covering(p, rect, phase, title, subtitle):
-    """Pulsing red shield with 'COVERING…' text inside ``rect``."""
+    """Flat status plate: red shield, blinking marker and 'COVERING…'."""
     p.save()
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
     red = theme.c("accent")
-    p.setPen(QPen(theme.c("accent", 0.55), 1))
-    p.setBrush(QColor(8, 4, 8, 215))
-    p.drawPath(theme.chamfer_path(rect, 10))
-
-    cx, cy = rect.left() + 28, rect.center().y()
-    beat = 0.5 + 0.5 * math.sin(phase * math.tau * 2)
-    # Expanding ring.
-    ring = (phase * 2) % 1.0
-    p.setBrush(Qt.BrushStyle.NoBrush)
-    p.setPen(QPen(theme.c("accent", 0.6 * (1 - ring)), 2))
-    p.drawPath(shield_path(cx, cy, 11 + 12 * ring))
+    p.setPen(QPen(red, 1))
+    p.setBrush(QColor(0, 0, 0, 225))
+    p.drawRect(rect)
     p.setPen(Qt.PenStyle.NoPen)
-    p.setBrush(theme.mix(red, QColor("black"), 0.35 * (1 - beat)))
-    p.drawPath(shield_path(cx, cy, 10 + 1.5 * beat))
-    p.setPen(QPen(theme.c("accent_text"), 1.6))
+    p.setBrush(red)
+    p.drawRect(QRectF(rect.left(), rect.top(), 3, rect.height()))
+
+    cx, cy = rect.left() + 26, rect.center().y()
+    on = int(phase * 4) % 2 == 0           # ~2 blinks per second
+    p.setBrush(red if on else theme.c("accent", 0.45))
+    p.drawPath(shield_path(cx, cy, 11))
+    p.setPen(QPen(QColor("white"), 1.6))
     p.setBrush(Qt.BrushStyle.NoBrush)
     p.drawLine(QPointF(cx - 4, cy), QPointF(cx - 1, cy + 3))
     p.drawLine(QPointF(cx - 1, cy + 3), QPointF(cx + 4, cy - 3))
 
     dots = "." * (1 + int(phase * 6) % 3)
     p.setPen(red)
-    p.setFont(theme.display_font(11, 2.5))
-    p.drawText(QRectF(cx + 22, rect.top() + 6, rect.width() - 60, 22),
+    p.setFont(theme.mono(10, True, 1.5))
+    p.drawText(QRectF(cx + 20, rect.top() + 5, rect.width() - 56, 20),
                Qt.AlignmentFlag.AlignVCenter, title + dots)
-    p.setPen(theme.c("muted"))
-    p.setFont(theme.font(8.5))
-    p.drawText(QRectF(cx + 22, rect.top() + 26, rect.width() - 60, 18),
+    p.setPen(QColor(255, 255, 255, 160))
+    p.setFont(theme.mono(8, False, 0.3, upper=False))
+    p.drawText(QRectF(cx + 20, rect.top() + 24, rect.width() - 56, 18),
                Qt.AlignmentFlag.AlignVCenter, subtitle)
-    # Scan line sweeping across the badge.
-    x = rect.left() + rect.width() * ((phase * 1.5) % 1.0)
-    p.setPen(QPen(theme.c("accent", 0.18), 1))
-    p.drawLine(QPointF(x, rect.top() + 2), QPointF(x, rect.bottom() - 2))
     p.restore()
 
 
 class CoveringBadge(QWidget):
-    """Stand-alone animated badge (sidebar), visible while the face is hidden."""
+    """Stand-alone badge (sidebar), visible while the face is hidden."""
 
     def __init__(self, title, subtitle):
         super().__init__()
         self._texts = (title, subtitle)
         self._phase = 0.0
-        self.setFixedHeight(50)
+        self.setFixedHeight(48)
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
         self.hide()
@@ -79,13 +74,13 @@ class CoveringBadge(QWidget):
     def set_active(self, active):
         if active:
             self.show()
-            self._timer.start(33)
+            self._timer.start(125)
         else:
             self._timer.stop()
             self.hide()
 
     def _tick(self):
-        self._phase = (self._phase + 0.012) % 1.0
+        self._phase = (self._phase + 0.0625) % 1.0
         self.update()
 
     def paintEvent(self, event):
@@ -95,7 +90,7 @@ class CoveringBadge(QWidget):
 
 # ----------------------------------------------------------------- preview ----
 class PreviewWidget(QWidget):
-    """Processed frames in a HUD frame; animated standby screen while stopped."""
+    """Processed frames framed like a camera viewfinder; NO SIGNAL while stopped."""
 
     sizeChanged = Signal(int, int)
     framePainted = Signal()
@@ -114,14 +109,12 @@ class PreviewWidget(QWidget):
         self._texts = ("", "", "", "LIVE", "COVERING", "")
         self._covering = False
         self._phase = 0.0
-        self._reveal = 1.0
+        self._live_since = 0.0
+        self._clock = QElapsedTimer()
+        self._clock.start()
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
-        self._timer.start(33)
-        self._reveal_anim = QVariantAnimation(self)
-        self._reveal_anim.setDuration(420)
-        self._reveal_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-        self._reveal_anim.valueChanged.connect(lambda v: setattr(self, "_reveal", float(v)))
+        self._timer.start(125)
 
     def set_texts(self, standby_title, standby_hint, hidden, live, covering, covering_sub):
         self._texts = (standby_title, standby_hint, hidden, live, covering, covering_sub)
@@ -136,17 +129,13 @@ class PreviewWidget(QWidget):
             return
         self._state = state
         if state == self.LIVE:
-            self._reveal = 0.0
-            self._reveal_anim.stop()
-            self._reveal_anim.setStartValue(0.0)
-            self._reveal_anim.setEndValue(1.0)
-            self._reveal_anim.start()
+            self._live_since = self._clock.elapsed() / 1000.0
         if state in (self.STANDBY, self.STARTING):
             self._image = self._array = None
         if state == self.HIDDEN:
             self._timer.stop()
         elif not self._timer.isActive():
-            self._timer.start(33)
+            self._timer.start(125)
         self.update()
 
     def set_frame(self, array):
@@ -161,13 +150,12 @@ class PreviewWidget(QWidget):
         self._fps = fps
 
     def _tick(self):
-        self._phase = (self._phase + 0.012) % 1.0
+        self._phase = (self._phase + 0.0625) % 1.0
         if self._state != self.LIVE:
             self.update()
         elif self._covering:
-            self.update(0, self.height() - 80, 300, 80)
-        else:
-            self.update(0, 0, self.width(), 60)
+            self.update(0, self.height() - 80, 320, 80)
+        # Live frames repaint the widget anyway; the read-out rides along.
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -176,13 +164,9 @@ class PreviewWidget(QWidget):
 
     def paintEvent(self, event):
         p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = QRectF(self.rect())
-        p.fillRect(rect, theme.c("bg"))
-        frame_path = theme.chamfer_path(rect.adjusted(0.5, 0.5, -0.5, -0.5), 18)
-        p.setClipPath(frame_path)
         p.fillRect(rect, theme.c("stage"))
-        target = rect
+        target = rect.adjusted(16, 16, -16, -16)
         if self._state == self.LIVE and self._image is not None:
             img = self._image
             scale = min(rect.width() / img.width(), rect.height() / img.height())
@@ -190,90 +174,87 @@ class PreviewWidget(QWidget):
             target = QRectF((rect.width() - w) / 2, (rect.height() - h) / 2, w, h)
             if abs(scale - 1.0) > 0.01:
                 p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-            p.setOpacity(self._reveal)
             p.drawImage(target, img)
-            p.setOpacity(1.0)
-            self._paint_live_overlay(p, rect)
+            self._paint_live_overlay(p, rect, target)
             self.framePainted.emit()
         elif self._state == self.HIDDEN:
+            theme.draw_icon(p, "eye", QRectF(rect.center().x() - 14, rect.center().y() - 48, 28, 28),
+                            QColor(255, 255, 255, 140))
             p.setPen(QColor(255, 255, 255, 150))
-            theme.draw_icon(p, "eye", QRectF(rect.center().x() - 16, rect.center().y() - 52, 32, 32),
-                            QColor(255, 255, 255, 150))
-            p.setFont(theme.font(10.5))
+            p.setFont(theme.mono(9, False, 0.3, upper=False))
             p.drawText(QRectF(40, rect.center().y(), rect.width() - 80, 60),
                        Qt.AlignmentFlag.AlignHCenter | Qt.TextFlag.TextWordWrap, self._texts[2])
         else:
             self._paint_standby(p, rect)
-        p.setClipping(False)
         p.setPen(QPen(theme.c("border"), 1))
         p.setBrush(Qt.BrushStyle.NoBrush)
-        p.drawPath(frame_path)
-        self._paint_brackets(p, target if self._state == self.LIVE else rect.adjusted(14, 14, -14, -14))
+        p.drawRect(rect.adjusted(0.5, 0.5, -0.5, -0.5))
+        theme.draw_corner_marks(p, target.adjusted(6, 6, -6, -6), QColor(255, 255, 255, 170), 14, 1.5)
 
-    def _paint_brackets(self, p, r):
-        p.setPen(QPen(theme.c("accent"), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.SquareCap))
-        n = 18
-        for (x, y, dx, dy) in ((r.left(), r.top(), 1, 1), (r.right(), r.top(), -1, 1),
-                               (r.left(), r.bottom(), 1, -1), (r.right(), r.bottom(), -1, -1)):
-            p.drawLine(QPointF(x, y), QPointF(x + dx * n, y))
-            p.drawLine(QPointF(x, y), QPointF(x, y + dy * n))
-
-    def _paint_live_overlay(self, p, rect):
-        p.setFont(theme.display_font(9, 2))
-        live = self._texts[3]
+    def _readout(self, p, x, y, text, color=None, align_right=False, box=True):
         fm = p.fontMetrics()
-        badge = QRectF(18, 18, fm.horizontalAdvance(live.upper()) + 36, 26)
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(0, 0, 0, 170))
-        p.drawPath(theme.chamfer_path(badge, 7))
-        beat = 0.5 + 0.5 * math.sin(self._phase * math.tau * 3)
-        p.setBrush(theme.c("accent", 0.45 + 0.55 * beat))
-        p.drawRect(QRectF(badge.left() + 11, badge.center().y() - 4, 8, 8))
-        p.setPen(theme.c("accent_text"))
-        p.drawText(badge.adjusted(26, 0, 0, 0), Qt.AlignmentFlag.AlignVCenter, live.upper())
-        if self._fps:
-            text = f"{self._fps:.0f} FPS"
-            w = fm.horizontalAdvance(text) + 24
-            fbox = QRectF(rect.width() - 18 - w, 18, w, 26)
+        w = fm.horizontalAdvance(text) + 14
+        r = QRectF(x - w if align_right else x, y, w, 20)
+        if box:
             p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(QColor(0, 0, 0, 170))
-            p.drawPath(theme.chamfer_path(fbox, 7))
-            p.setPen(QColor(255, 255, 255, 220))
-            p.drawText(fbox, Qt.AlignmentFlag.AlignCenter, text)
+            p.setBrush(QColor(0, 0, 0, 190))
+            p.drawRect(r)
+        p.setPen(color or QColor(255, 255, 255, 220))
+        p.drawText(r, Qt.AlignmentFlag.AlignCenter, text)
+        return r
+
+    def _paint_live_overlay(self, p, rect, target):
+        p.setFont(theme.mono(8.5, True, 1.0))
+        top = max(10.0, target.top() + 14)
+        left, right = target.left() + 14, target.right() - 14
+        on = int(self._phase * 4) % 2 == 0
+        r = self._readout(p, left, top, "   " + self._texts[3].upper())
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(theme.c("accent") if on else theme.c("accent", 0.35))
+        p.drawRect(QRectF(r.left() + 7, r.center().y() - 3.5, 7, 7))
+        secs = int(self._clock.elapsed() / 1000.0 - self._live_since)
+        self._readout(p, r.right() + 6, top, f"{secs // 3600:02d}:{secs // 60 % 60:02d}:{secs % 60:02d}")
+        if self._image is not None:
+            res = f"{self._array.shape[1]}x{self._array.shape[0]}" if self._array is not None else ""
+            fps = f"{self._fps:4.1f} FPS" if self._fps else "-- FPS"
+            self._readout(p, right, top, f"{res}  {fps}", align_right=True)
         if self._covering:
-            paint_covering(p, QRectF(18, rect.height() - 70, 250, 50), self._phase,
+            paint_covering(p, QRectF(left, target.bottom() - 62, 260, 48), self._phase,
                            self._texts[4], self._texts[5])
 
     def _paint_standby(self, p, rect):
-        cx, cy = rect.center().x(), rect.center().y() - 24
-        t = self._phase
-        # Faint grid on soot black.
-        p.setPen(QPen(QColor(255, 255, 255, 7), 1))
-        step = 32
-        for x in range(0, int(rect.width()), step):
+        cx, cy = rect.center().x(), rect.center().y() - 16
+        # Fine grid, centre crosshair, bars of a test pattern.
+        p.setPen(QPen(QColor(255, 255, 255, 9), 1))
+        step = 40
+        for x in range(int(rect.width() / 2) % step, int(rect.width()), step):
             p.drawLine(x, 0, x, int(rect.height()))
-        for y in range(0, int(rect.height()), step):
+        for y in range(int(rect.height() / 2) % step, int(rect.height()), step):
             p.drawLine(0, y, int(rect.width()), y)
-        scan_y = rect.height() * ((t * 1.4) % 1.0)
-        p.setPen(QPen(theme.c("accent", 0.12), 1))
-        p.drawLine(QPointF(0, scan_y), QPointF(rect.width(), scan_y))
+        p.setPen(QPen(QColor(255, 255, 255, 60), 1))
+        p.drawLine(QPointF(cx - 40, cy), QPointF(cx - 12, cy))
+        p.drawLine(QPointF(cx + 12, cy), QPointF(cx + 40, cy))
+        p.drawLine(QPointF(cx, cy - 40), QPointF(cx, cy - 12))
+        p.drawLine(QPointF(cx, cy + 12), QPointF(cx, cy + 40))
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRect(QRectF(cx - 4, cy - 4, 8, 8))
 
-        beat = 0.5 + 0.5 * math.sin(t * math.tau * 2)
-        hexr = 46 + 4 * beat
-        p.setPen(QPen(theme.c("accent", 0.55 + 0.25 * beat), 2))
-        p.setBrush(QColor(0, 0, 0, 160))
-        p.drawPath(theme.chamfer_path(QRectF(cx - hexr, cy - hexr, 2 * hexr, 2 * hexr), 16, "tl,tr,br,bl"))
+        p.setFont(theme.mono(15, True, 4))
+        title = self._texts[0]
         if self._state == self.STARTING:
-            pen = QPen(theme.c("accent"), 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap)
-            p.setPen(pen)
-            p.drawArc(QRectF(cx - 58, cy - 58, 116, 116), int(-t * 360 * 4 * 16), 70 * 16)
-        theme.draw_icon(p, "camera", QRectF(cx - 18, cy - 18, 36, 36), theme.c("accent_text"))
-        p.setPen(theme.c("accent_text"))
-        p.setFont(theme.display_font(17, 3))
-        p.drawText(QRectF(0, cy + 66, rect.width(), 34), Qt.AlignmentFlag.AlignCenter, self._texts[0])
-        p.setPen(theme.c("muted"))
-        p.setFont(theme.font(10))
-        p.drawText(QRectF(0, cy + 100, rect.width(), 24), Qt.AlignmentFlag.AlignCenter, self._texts[1])
+            title += "." * (1 + int(self._phase * 8) % 3)
+        p.setPen(QColor(255, 255, 255, 230))
+        p.drawText(QRectF(0, cy + 52, rect.width(), 30), Qt.AlignmentFlag.AlignCenter, title)
+        p.setPen(QColor(255, 255, 255, 110))
+        p.setFont(theme.mono(8.5, False, 0.4, upper=False))
+        p.drawText(QRectF(0, cy + 84, rect.width(), 22), Qt.AlignmentFlag.AlignCenter, self._texts[1])
+        # Signal-loss marker in the corner.
+        on = int(self._phase * 4) % 2 == 0
+        p.setFont(theme.mono(8.5, True, 1.0))
+        r = self._readout(p, 30, 30, "   NO SIGNAL", QColor(255, 255, 255, 200))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(theme.c("accent") if on else theme.c("accent", 0.3))
+        p.drawRect(QRectF(r.left() + 7, r.center().y() - 3.5, 7, 7))
 
 
 # ---------------------------------------------------------------- gaze map ----
@@ -312,7 +293,7 @@ class GazeMap(QWidget):
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
         p.setPen(QPen(theme.c("border"), 1))
         p.setBrush(theme.c("stage"))
-        p.drawPath(theme.chamfer_path(rect, 10))
+        p.drawRect(rect)
         p.setPen(QPen(theme.c("surface3"), 1, Qt.PenStyle.DashLine))
         for i in (1, 2):
             x = rect.left() + rect.width() * i / 3
@@ -364,7 +345,7 @@ def _load_hand_alpha():
 
 
 class HandDiagram(QWidget):
-    """Clickable palm outline; raised fingers glow red. Cross-fades on change."""
+    """Clickable palm outline; raised fingers turn red. Cross-fades on change."""
 
     fingerToggled = Signal(int)
 
@@ -422,22 +403,13 @@ class HandDiagram(QWidget):
         for enabled, polygon in zip(pattern, HAND_FINGER_ZONES):
             if enabled:
                 cv2.fillPoly(zone, [np.array(polygon, np.int32)], 255)
-        selected = np.minimum(self._alpha, zone)
-        glow = cv2.GaussianBlur(selected, (0, 0), 9)
+        # Outline only: raised fingers in red, the rest in grey.
+        selected = np.minimum(self._alpha, zone) > 0
         on, off = theme.c("accent"), theme.c("faint")
-        rgba = np.zeros((size, size, 4), np.float32)
-        # Glow underneath, outline on top (premultiplied "over").
-        ga = np.zeros_like(glow, dtype=np.float32)[..., None]   # flat, no glow
-        rgba[..., :3] = np.array((on.red(), on.green(), on.blue()), np.float32) * ga
-        rgba[..., 3:4] = ga
-        sel = (selected > 0)[..., None]
-        line_rgb = np.where(sel, (on.red(), on.green(), on.blue()), (off.red(), off.green(), off.blue()))
-        la = self._alpha.astype(np.float32)[..., None] / 255.0
-        rgba[..., :3] = line_rgb * la + rgba[..., :3] * (1 - la)
-        rgba[..., 3:4] = la + rgba[..., 3:4] * (1 - la)
-        # Un-premultiply for QImage RGBA8888.
-        alpha = np.maximum(rgba[..., 3:4], 1e-6)
-        out = np.dstack([np.clip(rgba[..., :3] / alpha, 0, 255), rgba[..., 3:4] * 255]).astype(np.uint8)
+        out = np.zeros((size, size, 4), np.uint8)
+        out[...] = (off.red(), off.green(), off.blue(), 0)
+        out[selected, :3] = (on.red(), on.green(), on.blue())
+        out[..., 3] = self._alpha
         px = int(self._size * 0.9 * ratio)
         out = cv2.resize(out, (px, px), interpolation=cv2.INTER_AREA)
         qimg = QImage(out.data, px, px, px * 4, QImage.Format.Format_RGBA8888).copy()
@@ -514,7 +486,7 @@ class FingerChips(QWidget):
         self.pattern = (False,) * 5
         self.setFixedHeight(32)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._font = theme.display_font(8, 0.8)
+        self._font = theme.mono(7.5, True, 0.4)
 
     def set_pattern(self, pattern):
         self.pattern = tuple(pattern)

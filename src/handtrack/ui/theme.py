@@ -1,56 +1,56 @@
-"""Colour tokens, fonts, SVG icons, chamfered shapes and the stylesheet.
+"""Colour tokens, fonts, SVG icons, shapes and the stylesheet.
 
-Look: dark, dirty and matte — soot black, worn off-white, dried-blood red,
-muddy aubergine; hard chamfered corners, uppercase display headings. No
-gradients and no glow.
+Look: utilitarian instrument panel. Black and white with signal red and deep
+purple; square corners, 1 px rules, monospace labels and read-outs, numbered
+sections. No gradients, no glow.
 """
 
 import os
 
 from PySide6.QtCore import QByteArray, QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QFont, QFontDatabase, QPainter, QPainterPath, QPixmap
+from PySide6.QtGui import QColor, QFont, QFontDatabase, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
 from handtrack import paths
 
 DARK = {
-    "bg": "#0b0a0a",
-    "sidebar": "#0e0c0c",
-    "surface": "#131111",
-    "surface2": "#191616",
-    "surface3": "#231f1e",
-    "border": "#2c2625",
-    "text": "#c9c1ba",        # dirty off-white
-    "muted": "#7b726b",
-    "faint": "#4d4541",
-    "accent": "#8a1c1c",      # dried blood
-    "accent2": "#35202f",     # muddy aubergine
-    "accent_text": "#e2dad3",
-    "success": "#8a1c1c",
-    "ok": "#c9c1ba",
-    "danger": "#9c2020",
-    "warning": "#5e3a55",
-    "stage": "#050404",
+    "bg": "#09090a",
+    "sidebar": "#0c0c0e",
+    "surface": "#111113",
+    "surface2": "#17171a",
+    "surface3": "#202024",
+    "border": "#2b2b31",
+    "text": "#ededee",
+    "muted": "#8e8e97",
+    "faint": "#56565d",
+    "accent": "#d0233f",      # signal red
+    "accent2": "#3d2163",     # deep purple
+    "accent_text": "#ffffff",
+    "success": "#d0233f",     # "on" states are red
+    "ok": "#ededee",
+    "danger": "#d0233f",
+    "warning": "#7b4bc0",
+    "stage": "#000000",
 }
 
 LIGHT = {
-    "bg": "#c9c3ba",          # dirty paper
-    "sidebar": "#bfb8ae",
-    "surface": "#d5cfc6",
-    "surface2": "#cbc4ba",
-    "surface3": "#b8b0a5",
-    "border": "#a39a8f",
-    "text": "#141111",
-    "muted": "#4a433e",
-    "faint": "#7a7067",
-    "accent": "#741717",
-    "accent2": "#35202f",
-    "accent_text": "#ece5de",
-    "success": "#741717",
-    "ok": "#141111",
-    "danger": "#7f1a1a",
-    "warning": "#4a2c44",
-    "stage": "#050404",
+    "bg": "#ececee",
+    "sidebar": "#e3e3e6",
+    "surface": "#f8f8f9",
+    "surface2": "#efeff1",
+    "surface3": "#dedee2",
+    "border": "#c9c9cf",
+    "text": "#0b0b0c",
+    "muted": "#55555d",
+    "faint": "#8f8f97",
+    "accent": "#b8132f",
+    "accent2": "#3d2163",
+    "accent_text": "#ffffff",
+    "success": "#b8132f",
+    "ok": "#0b0b0c",
+    "danger": "#b8132f",
+    "warning": "#5b2f99",
+    "stage": "#000000",
 }
 
 # Lucide icon file names (assets/icons, ISC license).
@@ -63,8 +63,6 @@ ICONS = {
     "sliders": "sliders-horizontal", "photo": "image", "check": "check", "globe": "globe",
     "eraser": "eraser", "brush": "brush",
 }
-
-CHAMFER = 9
 
 _current = dict(DARK)
 _dark = True
@@ -104,16 +102,28 @@ def mix(a, b, t):
 
 # ------------------------------------------------------------------- fonts ----
 _UI_FAMILY = None
-_DISPLAY_FAMILY = None
+_MONO_FAMILY = None
 
 
 def load_fonts():
-    """Register the bundled display font. Call once after QApplication exists."""
-    global _DISPLAY_FAMILY
-    path = os.path.join(paths.FONTS_DIR, "RussoOne-Regular.ttf")
-    font_id = QFontDatabase.addApplicationFont(path) if os.path.isfile(path) else -1
-    families = QFontDatabase.applicationFontFamilies(font_id) if font_id >= 0 else []
-    _DISPLAY_FAMILY = families[0] if families else ui_family()
+    """Register the bundled monospace font. Call once after QApplication exists."""
+    global _MONO_FAMILY
+    families = []
+    for name in ("JetBrainsMono-Regular.ttf", "JetBrainsMono-Bold.ttf"):
+        path = os.path.join(paths.FONTS_DIR, name)
+        if os.path.isfile(path):
+            font_id = QFontDatabase.addApplicationFont(path)
+            if font_id >= 0:
+                families += QFontDatabase.applicationFontFamilies(font_id)
+    _MONO_FAMILY = families[0] if families else mono_fallback()
+
+
+def mono_fallback():
+    available = set(QFontDatabase.families())
+    for name in ("Cascadia Mono", "Consolas", "SF Mono", "Menlo", "DejaVu Sans Mono"):
+        if name in available:
+            return name
+    return QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont).family()
 
 
 def ui_family():
@@ -130,6 +140,10 @@ def ui_family():
     return _UI_FAMILY
 
 
+def mono_family():
+    return _MONO_FAMILY or mono_fallback()
+
+
 def font(size=10, weight=QFont.Weight.Normal):
     f = QFont(ui_family())
     f.setPointSizeF(size)
@@ -137,12 +151,20 @@ def font(size=10, weight=QFont.Weight.Normal):
     return f
 
 
-def display_font(size=12, spacing=1.5):
-    f = QFont(_DISPLAY_FAMILY or ui_family())
+def mono(size=9, bold=True, spacing=0.6, upper=True):
+    """Monospace label / read-out font."""
+    f = QFont(mono_family())
     f.setPointSizeF(size)
-    f.setCapitalization(QFont.Capitalization.AllUppercase)
+    f.setWeight(QFont.Weight.Bold if bold else QFont.Weight.Normal)
+    if upper:
+        f.setCapitalization(QFont.Capitalization.AllUppercase)
     f.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, spacing)
     return f
+
+
+def display_font(size=12, spacing=1.0):
+    """Headings use the bold mono face, upper case."""
+    return mono(size, True, spacing)
 
 
 # ------------------------------------------------------------------- icons ----
@@ -158,14 +180,13 @@ def _svg(name):
                 data = f.read()
         except OSError:
             data = ""
-        # Sharper strokes for the aggressive look.
         data = data.replace('stroke-linecap="round"', 'stroke-linecap="square"') \
                    .replace('stroke-linejoin="round"', 'stroke-linejoin="miter"')
         _SVG_CACHE[name] = data
     return data
 
 
-def icon_pixmap(name, color, size=18, ratio=2.0, stroke=2.2):
+def icon_pixmap(name, color, size=18, ratio=2.0, stroke=1.8):
     """Render an SVG icon in the given colour (QColor or token name)."""
     if not isinstance(color, QColor):
         color = c(color)
@@ -190,7 +211,7 @@ def icon_pixmap(name, color, size=18, ratio=2.0, stroke=2.2):
     return pix
 
 
-def draw_icon(painter, name, rect, color, stroke=2.2):
+def draw_icon(painter, name, rect, color, stroke=1.8):
     size = int(min(rect.width(), rect.height()))
     ratio = max(1.0, painter.device().devicePixelRatioF()) if painter.device() else 2.0
     pix = icon_pixmap(name, color, size, ratio, stroke)
@@ -198,75 +219,76 @@ def draw_icon(painter, name, rect, color, stroke=2.2):
 
 
 # ------------------------------------------------------------------ shapes ----
-def chamfer_path(rect, cut=CHAMFER, corners="tl,br"):
-    """Rectangle with diagonally cut corners."""
-    r = QRectF(rect)
-    cuts = {k: (cut if k in corners else 0) for k in ("tl", "tr", "br", "bl")}
+def chamfer_path(rect, cut=0, corners="tl,br"):
+    """Plain rectangle. Every panel, button and tag is square-cornered; the
+    ``cut`` argument is accepted for call-site compatibility and ignored."""
     path = QPainterPath()
-    path.moveTo(r.left() + cuts["tl"], r.top())
-    path.lineTo(r.right() - cuts["tr"], r.top())
-    path.lineTo(r.right(), r.top() + cuts["tr"])
-    path.lineTo(r.right(), r.bottom() - cuts["br"])
-    path.lineTo(r.right() - cuts["br"], r.bottom())
-    path.lineTo(r.left() + cuts["bl"], r.bottom())
-    path.lineTo(r.left(), r.bottom() - cuts["bl"])
-    path.lineTo(r.left(), r.top() + cuts["tl"])
-    path.closeSubpath()
+    path.addRect(QRectF(rect))
     return path
+
+
+def draw_corner_marks(painter, rect, color, length=8, width=1.5):
+    """Registration marks in the four corners of ``rect``."""
+    painter.setPen(QPen(color, width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.SquareCap))
+    r = QRectF(rect)
+    for x, y, dx, dy in ((r.left(), r.top(), 1, 1), (r.right(), r.top(), -1, 1),
+                         (r.left(), r.bottom(), 1, -1), (r.right(), r.bottom(), -1, -1)):
+        painter.drawLine(QPointF(x, y), QPointF(x + dx * length, y))
+        painter.drawLine(QPointF(x, y), QPointF(x, y + dy * length))
 
 
 def stylesheet():
     t = _current
     arrow = os.path.join(paths.ICONS_DIR, "combo-arrow.svg").replace("\\", "/")
+    mono_f = mono_family()
     return f"""
     QWidget {{ color: {t['text']}; font-family: "{ui_family()}"; font-size: 10pt; }}
     QMainWindow, #Root {{ background: {t['bg']}; }}
     QToolTip {{
-        background: {t['surface3']}; color: {t['text']};
-        border: 1px solid {t['accent']}; padding: 6px 8px;
+        background: {t['surface3']}; color: {t['text']}; border: 1px solid {t['border']};
+        padding: 5px 7px; font-family: "{mono_f}"; font-size: 9pt;
     }}
     QLabel {{ background: transparent; }}
     QLabel[role="subtitle"] {{ color: {t['muted']}; font-size: 10pt; }}
     QLabel[role="muted"] {{ color: {t['muted']}; }}
     QLabel[role="faint"] {{ color: {t['faint']}; font-size: 9pt; }}
-    QLabel[role="mono"] {{ font-family: "Cascadia Mono", "SF Mono", Menlo, "DejaVu Sans Mono", monospace;
-                           color: {t['muted']}; }}
+    QLabel[role="mono"] {{ font-family: "{mono_f}"; font-size: 9pt; color: {t['muted']}; }}
 
     QScrollArea, QScrollArea > QWidget > QWidget {{ background: transparent; border: none; }}
-    QScrollBar:vertical {{ background: transparent; width: 8px; margin: 4px 1px; }}
+    QScrollBar:vertical {{ background: transparent; width: 6px; margin: 2px 0; }}
     QScrollBar::handle:vertical {{ background: {t['surface3']}; min-height: 40px; }}
-    QScrollBar::handle:vertical:hover {{ background: {t['accent']}; }}
+    QScrollBar::handle:vertical:hover {{ background: {t['faint']}; }}
     QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::sub-page {{
         height: 0; background: none;
     }}
 
     QComboBox, QLineEdit {{
-        background: {t['surface2']}; border: 1px solid {t['border']};
-        border-radius: 0; padding: 7px 11px; min-height: 20px;
+        background: {t['surface2']}; border: 1px solid {t['border']}; border-radius: 0;
+        padding: 6px 10px; min-height: 20px; font-family: "{mono_f}"; font-size: 9.5pt;
         selection-background-color: {t['accent']};
     }}
     QComboBox:hover, QLineEdit:hover {{ border-color: {t['faint']}; }}
     QComboBox:focus, QLineEdit:focus {{ border-color: {t['accent']}; }}
     QLineEdit:disabled, QComboBox:disabled {{ color: {t['faint']}; }}
-    QComboBox::drop-down {{ border: none; width: 26px; }}
-    QComboBox::down-arrow {{ image: url("{arrow}"); width: 12px; height: 8px; margin-right: 10px; }}
+    QComboBox::drop-down {{ border: none; border-left: 1px solid {t['border']}; width: 26px; }}
+    QComboBox::down-arrow {{ image: url("{arrow}"); width: 10px; height: 7px; }}
     QComboBox QAbstractItemView {{
-        background: {t['surface2']}; border: 1px solid {t['accent']}; padding: 2px; outline: none;
+        background: {t['surface2']}; border: 1px solid {t['border']}; padding: 0; outline: none;
         selection-background-color: {t['accent']}; selection-color: white;
+        font-family: "{mono_f}";
     }}
 
-    QSlider::groove:horizontal {{ height: 3px; background: {t['surface3']}; }}
+    QSlider::groove:horizontal {{ height: 2px; background: {t['surface3']}; }}
     QSlider::sub-page:horizontal {{ background: {t['accent']}; }}
     QSlider::handle:horizontal {{
-        background: {t['text']}; width: 10px; height: 18px; margin: -8px 0;
-        border: 2px solid {t['accent']};
+        background: {t['text']}; width: 8px; height: 16px; margin: -7px 0;
     }}
     QSlider::handle:horizontal:hover {{ background: {t['accent']}; }}
 
     QMessageBox {{ background: {t['surface']}; }}
     QMessageBox QPushButton {{
-        background: {t['surface3']}; border: 1px solid {t['border']};
-        padding: 7px 18px; min-width: 70px;
+        background: {t['surface3']}; border: 1px solid {t['border']}; padding: 6px 16px;
+        min-width: 70px; font-family: "{mono_f}";
     }}
     QMessageBox QPushButton:hover {{ background: {t['accent']}; color: white; border-color: {t['accent']}; }}
     """

@@ -1,10 +1,14 @@
-"""Custom-painted, animated widgets shared by all pages."""
+"""Custom-painted widgets shared by all pages.
+
+Utilitarian look: square corners, 1 px rules, monospace labels, numbered
+panels, state shown as text (ON / OFF, tags) rather than decoration.
+"""
 
 from PySide6.QtCore import (
     QEasingCurve, QParallelAnimationGroup, QPoint, QPointF, QPropertyAnimation, QRectF, QSize,
     Qt, QTimer, QVariantAnimation, Property, Signal,
 )
-from PySide6.QtGui import QFontMetrics, QColor, QFont, QPainter, QPen
+from PySide6.QtGui import QColor, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import (
     QAbstractButton, QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QSizePolicy, QSlider,
     QStackedWidget, QVBoxLayout, QWidget,
@@ -23,17 +27,26 @@ def label(text="", role=None, wrap=False):
     return lbl
 
 
-def heading(text, size=20, spacing=2.0):
+def heading(text, size=20, spacing=1.0):
     lbl = QLabel(text)
     f = theme.display_font(size, spacing)
     lbl.setFont(f)
     # The app stylesheet sets family/size on every widget; restate them here
     # (caps and letter spacing are not stylesheet properties and survive).
-    lbl.setStyleSheet(f"font-family: '{f.family()}'; font-size: {size}pt;")
+    lbl.setStyleSheet(f"font-family: '{f.family()}'; font-size: {size}pt; font-weight: 700;")
     return lbl
 
 
-def _animator(widget, attr, duration=160, curve=EASE):
+def tag_label(text, color="muted", size=8):
+    """Small monospace caption, e.g. a section code."""
+    lbl = QLabel(text)
+    lbl.setFont(theme.mono(size, False, 0.8))
+    lbl.setStyleSheet(f"font-family: '{theme.mono_family()}'; font-size: {size}pt; "
+                      f"color: {theme.hex_(color)};")
+    return lbl
+
+
+def _animator(widget, attr, duration=140, curve=EASE):
     anim = QVariantAnimation(widget)
     anim.setDuration(duration)
     anim.setEasingCurve(curve)
@@ -67,19 +80,20 @@ class Icon(QLabel):
 
 # ------------------------------------------------------------------ toggle ----
 class Toggle(QAbstractButton):
-    """Squared switch: a block slides across and the track floods red."""
+    """Two-cell switch labelled OFF / ON; the active cell fills."""
 
     def __init__(self, checked=False, parent=None):
         super().__init__(parent)
         self.setCheckable(True)
         self.setChecked(checked)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFixedSize(46, 22)
+        self.setFixedSize(64, 22)
         self._pos = 1.0 if checked else 0.0
         self._hover = 0.0
+        self._font = theme.mono(7.5, True, 0.5)
         self._anim = QPropertyAnimation(self, b"knob", self)
-        self._anim.setDuration(200)
-        self._anim.setEasingCurve(QEasingCurve.Type.OutQuint)
+        self._anim.setDuration(120)
+        self._anim.setEasingCurve(EASE)
         self._hover_anim = _animator(self, "_hover")
         self.toggled.connect(lambda on: _animate(self._anim, self._pos, 1.0 if on else 0.0))
 
@@ -106,32 +120,36 @@ class Toggle(QAbstractButton):
         _animate(self._hover_anim, self._hover, 0.0)
 
     def sizeHint(self):
-        return QSize(46, 22)
+        return QSize(64, 22)
 
     def paintEvent(self, event):
         p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
         if not self.isEnabled():
             p.setOpacity(0.4)
-        t = max(0.0, min(1.0, self._pos))
         rect = QRectF(0.5, 0.5, self.width() - 1, self.height() - 1)
-        off = theme.mix(theme.c("surface3"), theme.c("faint"), self._hover * 0.4)
-        track = theme.chamfer_path(rect, 5, "tl,br")
-        p.setPen(QPen(theme.mix(theme.c("border"), theme.c("accent"), t), 1))
-        p.setBrush(theme.mix(off, theme.c("accent"), t))
-        p.drawPath(track)
-        knob_w = rect.height() - 6
-        x = rect.left() + 3 + (rect.width() - knob_w - 6) * self._pos
+        half = rect.width() / 2
+        p.setPen(QPen(theme.mix(theme.c("border"), theme.c("faint"), self._hover), 1))
+        p.setBrush(theme.c("surface2"))
+        p.drawRect(rect)
+        # Sliding fill block.
+        x = rect.left() + half * self._pos
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(theme.c("accent_text") if t > 0.5 else theme.c("muted"))
-        p.drawRect(QRectF(x, rect.top() + 3, knob_w, knob_w))
+        p.setBrush(theme.mix(theme.c("surface3"), theme.c("accent"), self._pos))
+        p.drawRect(QRectF(x + 2, rect.top() + 2, half - 4, rect.height() - 4))
+        p.setFont(self._font)
+        on = self._pos > 0.5
+        p.setPen(theme.c("faint") if on else theme.c("text"))
+        p.drawText(QRectF(rect.left(), rect.top(), half, rect.height()), Qt.AlignmentFlag.AlignCenter, "OFF")
+        p.setPen(theme.c("accent_text") if on else theme.c("faint"))
+        p.drawText(QRectF(rect.left() + half, rect.top(), half, rect.height()),
+                   Qt.AlignmentFlag.AlignCenter, "ON")
 
 
 # ------------------------------------------------------------------ button ----
 class Button(QAbstractButton):
-    """Chamfered button with an icon and animated hover/press.
+    """Square button with an icon and monospace caption.
 
-    kind: primary (purple→red), secondary, ghost, danger.
+    kind: primary (solid red), secondary (outlined), ghost (text only), danger.
     """
 
     def __init__(self, text="", icon=None, kind="secondary", parent=None):
@@ -142,10 +160,10 @@ class Button(QAbstractButton):
         self._hover = 0.0
         self._press = 0.0
         self._hover_anim = _animator(self, "_hover")
-        self._press_anim = _animator(self, "_press", 110)
+        self._press_anim = _animator(self, "_press", 90)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        self._font = theme.display_font(9.5, 1.2)
+        self._font = theme.mono(9, True, 0.8)
 
     def set_icon(self, name):
         self._icon = name
@@ -157,10 +175,10 @@ class Button(QAbstractButton):
         self.update()
 
     def sizeHint(self):
-        w = QFontMetrics(self._font).horizontalAdvance(self.text().upper()) + 34
+        w = QFontMetrics(self._font).horizontalAdvance(self.text().upper()) + 30
         if self._icon:
-            w += 24 if self.text() else 6
-        return QSize(max(w, 40), 38)
+            w += 22 if self.text() else 6
+        return QSize(max(w, 36), 34)
 
     def enterEvent(self, event):
         _animate(self._hover_anim, self._hover, 1.0)
@@ -178,40 +196,34 @@ class Button(QAbstractButton):
 
     def paintEvent(self, event):
         p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
         if not self.isEnabled():
             p.setOpacity(0.4)
-        shrink = self._press * 1.5
-        rect = QRectF(self.rect()).adjusted(0.5 + shrink, 0.5 + shrink, -0.5 - shrink, -0.5 - shrink)
-        path = theme.chamfer_path(rect, 8)
+        rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
         h = self._hover
-        white = QColor("white")
-        if self.kind == "primary":
-            p.setBrush(theme.mix(theme.c("accent"), white, 0.08 * h))
-            p.setPen(QPen(theme.mix(theme.c("accent"), QColor("black"), 0.35), 1))
-            fg = theme.c("accent_text")
-        elif self.kind == "danger":
-            p.setBrush(theme.mix(theme.c("danger"), white, 0.08 * h))
-            p.setPen(Qt.PenStyle.NoPen)
+        black = QColor("black")
+        if self.kind in ("primary", "danger"):
+            base = theme.c("danger" if self.kind == "danger" else "accent")
+            p.setBrush(theme.mix(base, black, 0.18 * self._press + 0.0 * h))
+            p.setPen(QPen(theme.mix(base, QColor("white"), 0.25 * h), 1))
             fg = theme.c("accent_text")
         elif self.kind == "ghost":
-            p.setBrush(theme.c("surface3", 0.9 * h))
-            p.setPen(QPen(theme.c("accent", 0.8 * h), 1))
+            p.setBrush(theme.c("surface3", 0.8 * h))
+            p.setPen(Qt.PenStyle.NoPen)
             fg = theme.mix(theme.c("muted"), theme.c("text"), h)
         else:
-            p.setBrush(theme.mix(theme.c("surface3"), theme.c("surface2"), 0.4 * h))
-            p.setPen(QPen(theme.mix(theme.c("border"), theme.c("accent"), h), 1))
+            p.setBrush(theme.mix(theme.c("surface2"), theme.c("surface3"), h))
+            p.setPen(QPen(theme.mix(theme.c("border"), theme.c("text"), 0.5 * h), 1))
             fg = theme.c("text")
-        p.drawPath(path)
+        p.drawRect(rect)
 
         text = self.text().upper()
         fm = QFontMetrics(self._font)
-        icon_w = 16 if self._icon else 0
-        gap = 9 if (self._icon and text) else 0
+        icon_w = 15 if self._icon else 0
+        gap = 8 if (self._icon and text) else 0
         total = icon_w + gap + fm.horizontalAdvance(text)
         x = rect.center().x() - total / 2
         if self._icon:
-            theme.draw_icon(p, self._icon, QRectF(x, rect.center().y() - 8, 16, 16), fg)
+            theme.draw_icon(p, self._icon, QRectF(x, rect.center().y() - 7.5, 15, 15), fg)
         if text:
             p.setPen(fg)
             p.setFont(self._font)
@@ -221,35 +233,47 @@ class Button(QAbstractButton):
 
 # -------------------------------------------------------------------- card ----
 class Card(QFrame):
-    """Surface panel with chamfered corners and a red tick on the title."""
+    """Panel: 1 px frame, header strip with a red marker, title, optional
+    section code on the right, and a rule under the header."""
 
-    def __init__(self, title=None, icon=None, parent=None, spacing=12):
+    def __init__(self, title=None, icon=None, parent=None, spacing=12, code=None):
         super().__init__(parent)
         self.body = QVBoxLayout(self)
-        self.body.setContentsMargins(20, 16, 20, 18)
+        self.body.setContentsMargins(16, 12, 16, 16)
         self.body.setSpacing(spacing)
         self.header = None
+        self._has_header = bool(title)
         if title:
             self.header = QHBoxLayout()
-            self.header.setSpacing(10)
+            self.header.setSpacing(8)
             if icon:
-                self.header.addWidget(Icon(icon, 16, "accent"))
-            self.title_label = heading(title, 10.5, 1.6)
+                self.header.addWidget(Icon(icon, 14, "muted"))
+            self.title_label = heading(title, 9.5, 1.2)
             self.header.addWidget(self.title_label)
             self.header.addStretch(1)
+            self.code_label = tag_label(code or "", "faint")
+            self.header.addWidget(self.code_label)
             self.body.addLayout(self.header)
+            self.body.addSpacing(4)
+
+    def set_code(self, code):
+        if self._has_header:
+            self.code_label.setText(code)
 
     def paintEvent(self, event):
         p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
         p.setBrush(theme.c("surface"))
         p.setPen(QPen(theme.c("border"), 1))
-        p.drawPath(theme.chamfer_path(rect, 14))
-        # Accent bracket on the cut corner.
-        p.setPen(QPen(theme.c("accent"), 2))
-        p.drawLine(QPointF(rect.left() + 1, rect.top() + 14), QPointF(rect.left() + 14, rect.top() + 1))
-        p.drawLine(QPointF(rect.left() + 14, rect.top() + 1), QPointF(rect.left() + 40, rect.top() + 1))
+        p.drawRect(rect)
+        if self._has_header:
+            y = self.header.geometry().bottom() + 8.5
+            p.setPen(QPen(theme.c("border"), 1))
+            p.drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y))
+            # Red marker on the header edge.
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(theme.c("accent"))
+            p.drawRect(QRectF(rect.left(), rect.top(), 3, y - rect.top()))
 
 
 # ------------------------------------------------------------- setting row ----
@@ -262,7 +286,7 @@ class SettingRow(QWidget):
         row.setContentsMargins(0, 2, 0, 2)
         row.setSpacing(12)
         if icon:
-            row.addWidget(Icon(icon, 15, "muted"), 0, Qt.AlignmentFlag.AlignTop)
+            row.addWidget(Icon(icon, 14, "muted"), 0, Qt.AlignmentFlag.AlignTop)
         texts = QVBoxLayout()
         texts.setSpacing(2)
         self.title = label(title, wrap=True)
@@ -313,17 +337,17 @@ class SliderRow(QWidget):
         self.valueChanged.emit(self.value())
 
     def _update_label(self):
-        self.value_label.setText(self._fmt(self.value()))
+        self.value_label.setText(f"[ {self._fmt(self.value())} ]")
 
 
 # -------------------------------------------------------------------- pill ----
 class Pill(QWidget):
-    """Angular status tag: a square marker (optionally pulsing) and text."""
+    """Status tag: a square indicator (blinks while active) and mono text."""
 
     def __init__(self, text="", color="muted", pulse=False):
         super().__init__()
-        self._text, self._color, self._phase = text, color, 0.0
-        self._font = theme.display_font(8, 1.2)
+        self._text, self._color, self._blink = text, color, True
+        self._font = theme.mono(7.5, True, 0.8)
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
         self.set_state(text, color, pulse)
@@ -331,58 +355,53 @@ class Pill(QWidget):
     def set_state(self, text, color="muted", pulse=False):
         self._text, self._color = text, color
         if pulse and not self._timer.isActive():
-            self._timer.start(40)
+            self._timer.start(600)
         elif not pulse:
             self._timer.stop()
-            self._phase = 0.0
+            self._blink = True
         self.updateGeometry()
         self.update()
 
     def _tick(self):
-        self._phase = (self._phase + 0.05) % 1.0
+        self._blink = not self._blink
         self.update()
 
     def sizeHint(self):
-        return QSize(QFontMetrics(self._font).horizontalAdvance(self._text.upper()) + 34, 24)
+        return QSize(QFontMetrics(self._font).horizontalAdvance(self._text.upper()) + 28, 20)
 
     def minimumSizeHint(self):
         return self.sizeHint()
 
     def paintEvent(self, event):
         p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
         color = theme.c(self._color)
-        p.setPen(QPen(theme.c(self._color, 0.45), 1))
-        p.setBrush(theme.c(self._color, 0.10))
-        p.drawPath(theme.chamfer_path(rect, 6, "tl,br"))
-        cy = rect.center().y()
-        if self._timer.isActive():
-            p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(theme.c(self._color, 0.5 * (1 - self._phase)))
-            r = 3 + 5 * self._phase
-            p.drawRect(QRectF(13 - r, cy - r, 2 * r, 2 * r))
+        p.setPen(QPen(theme.c(self._color, 0.6), 1))
+        p.setBrush(theme.c(self._color, 0.08))
+        p.drawRect(rect)
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(color)
-        p.drawRect(QRectF(10, cy - 3, 6, 6))
+        p.setBrush(color if self._blink else theme.c(self._color, 0.25))
+        p.drawRect(QRectF(7, rect.center().y() - 3, 6, 6))
         p.setPen(color)
         p.setFont(self._font)
-        p.drawText(QRectF(23, 0, rect.width() - 26, rect.height()),
+        p.drawText(QRectF(19, 0, rect.width() - 22, rect.height()),
                    Qt.AlignmentFlag.AlignVCenter, self._text.upper())
 
 
 # ----------------------------------------------------------------- sidebar ----
 class NavButton(QAbstractButton):
-    def __init__(self, text, icon):
+    def __init__(self, text, icon, index):
         super().__init__()
         self.setText(text)
         self._icon = icon
+        self._index = f"{index:02d}"
         self.setCheckable(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFixedHeight(44)
+        self.setFixedHeight(40)
         self._hover = 0.0
         self._hover_anim = _animator(self, "_hover")
-        self._font = theme.display_font(9.5, 1.6)
+        self._font = theme.mono(9, True, 1.0)
+        self._num_font = theme.mono(8, False, 0.4)
 
     def enterEvent(self, event):
         _animate(self._hover_anim, self._hover, 1.0)
@@ -392,19 +411,20 @@ class NavButton(QAbstractButton):
 
     def paintEvent(self, event):
         p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = QRectF(self.rect())
         active = self.isChecked()
         if not active and self._hover > 0:
             p.setPen(Qt.PenStyle.NoPen)
             p.setBrush(theme.c("surface2", self._hover))
-            p.drawPath(theme.chamfer_path(rect, 8))
+            p.drawRect(rect)
         fg = theme.c("text") if active else theme.mix(theme.c("muted"), theme.c("text"), self._hover)
-        theme.draw_icon(p, self._icon, QRectF(16, rect.center().y() - 9, 18, 18),
-                        theme.c("accent") if active else fg)
+        p.setFont(self._num_font)
+        p.setPen(theme.c("accent") if active else theme.c("faint"))
+        p.drawText(QRectF(12, 0, 22, rect.height()), Qt.AlignmentFlag.AlignVCenter, self._index)
+        theme.draw_icon(p, self._icon, QRectF(38, rect.center().y() - 8, 16, 16), fg)
         p.setPen(fg)
         p.setFont(self._font)
-        p.drawText(QRectF(48, 0, rect.width() - 52, rect.height()),
+        p.drawText(QRectF(64, 0, rect.width() - 68, rect.height()),
                    Qt.AlignmentFlag.AlignVCenter, self.text().upper())
 
 
@@ -413,13 +433,12 @@ class NavIndicator(QWidget):
 
     def paintEvent(self, event):
         p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = QRectF(self.rect())
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(theme.c("surface3"))
-        p.drawPath(theme.chamfer_path(rect, 8))
+        p.drawRect(rect)
         p.setBrush(theme.c("accent"))
-        p.drawRect(QRectF(0, 6, 3, rect.height() - 12))
+        p.drawRect(QRectF(0, 0, 3, rect.height()))
 
 
 class NavList(QWidget):
@@ -429,18 +448,18 @@ class NavList(QWidget):
         super().__init__()
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.setSpacing(4)
+        self._layout.setSpacing(2)
         self._buttons = []
         self._current = -1
         self._indicator = NavIndicator(self)
         self._indicator.lower()
         self._anim = QPropertyAnimation(self._indicator, b"geometry", self)
-        self._anim.setDuration(300)
-        self._anim.setEasingCurve(QEasingCurve.Type.OutQuint)
+        self._anim.setDuration(180)
+        self._anim.setEasingCurve(EASE)
 
     def add(self, text, icon):
-        btn = NavButton(text, icon)
         index = len(self._buttons)
+        btn = NavButton(text, icon, index + 1)
         btn.clicked.connect(lambda: self.set_current(index))
         self._buttons.append(btn)
         self._layout.addWidget(btn)
@@ -474,7 +493,7 @@ class NavList(QWidget):
 
 # -------------------------------------------------------------- page stack ----
 class FadeStack(QStackedWidget):
-    """Pages fade and slide sideways in when switched."""
+    """Pages fade and slide in a little when switched."""
 
     def __init__(self):
         super().__init__()
@@ -489,15 +508,15 @@ class FadeStack(QStackedWidget):
         effect = QGraphicsOpacityEffect(page)
         page.setGraphicsEffect(effect)
         fade = QPropertyAnimation(effect, b"opacity", page)
-        fade.setDuration(220)
+        fade.setDuration(160)
         fade.setStartValue(0.0)
         fade.setEndValue(1.0)
         end = page.pos()
         slide = QPropertyAnimation(page, b"pos", page)
-        slide.setDuration(280)
-        slide.setStartValue(end + QPoint(28 if forward else -28, 0))
+        slide.setDuration(200)
+        slide.setStartValue(end + QPoint(14 if forward else -14, 0))
         slide.setEndValue(end)
-        slide.setEasingCurve(QEasingCurve.Type.OutQuint)
+        slide.setEasingCurve(EASE)
         if self._group is not None:
             self._group.stop()
         group = QParallelAnimationGroup(self)
@@ -511,7 +530,7 @@ class FadeStack(QStackedWidget):
 
 # ------------------------------------------------------------------- toast ----
 class Toast(QWidget):
-    """Notification that slides up from the bottom of its parent."""
+    """Notification bar that slides up from the bottom of its parent."""
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -520,9 +539,9 @@ class Toast(QWidget):
         self._kind = "accent"
         self._icon = "info"
         self._opacity = 0.0
-        self._font = theme.font(10, QFont.Weight.DemiBold)
+        self._font = theme.mono(9, False, 0.3, upper=False)
         self.hide()
-        self._anim = _animator(self, "_opacity", 240)
+        self._anim = _animator(self, "_opacity", 180)
         self._anim.valueChanged.connect(lambda _v: self._place())
         self._anim.finished.connect(lambda: self.hide() if self._opacity <= 0.01 else None)
         self._hide_timer = QTimer(self)
@@ -531,8 +550,8 @@ class Toast(QWidget):
 
     def show_message(self, text, kind="accent", icon="info", msec=2600):
         self._text, self._kind, self._icon = text, kind, icon
-        w = min(QFontMetrics(self._font).horizontalAdvance(text) + 76, self.parent().width() - 40)
-        self.resize(w, 46)
+        w = min(QFontMetrics(self._font).horizontalAdvance(text) + 66, self.parent().width() - 40)
+        self.resize(w, 40)
         self.raise_()
         self.show()
         _animate(self._anim, self._opacity, 1.0)
@@ -541,23 +560,22 @@ class Toast(QWidget):
     def _place(self):
         parent = self.parent()
         self.move((parent.width() - self.width()) // 2,
-                  parent.height() - self.height() - 24 + int((1 - self._opacity) * 24))
+                  parent.height() - self.height() - 20 + int((1 - self._opacity) * 16))
 
     def paintEvent(self, event):
         p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setOpacity(self._opacity)
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-        p.setPen(QPen(theme.c(self._kind), 1))
+        p.setPen(QPen(theme.c("border"), 1))
         p.setBrush(theme.c("surface2"))
-        p.drawPath(theme.chamfer_path(rect, 10))
+        p.drawRect(rect)
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(theme.c(self._kind))
-        p.drawRect(QRectF(rect.left(), rect.top() + 10, 3, rect.height() - 20))
-        theme.draw_icon(p, self._icon, QRectF(18, rect.center().y() - 9, 18, 18), theme.c(self._kind))
+        p.drawRect(QRectF(rect.left(), rect.top(), 3, rect.height()))
+        theme.draw_icon(p, self._icon, QRectF(14, rect.center().y() - 8, 16, 16), theme.c(self._kind))
         p.setPen(theme.c("text"))
         p.setFont(self._font)
-        p.drawText(QRectF(48, 0, rect.width() - 58, rect.height()),
+        p.drawText(QRectF(40, 0, rect.width() - 48, rect.height()),
                    Qt.AlignmentFlag.AlignVCenter, self._text)
 
 
@@ -570,47 +588,46 @@ class Segmented(QWidget):
         self._options = list(options)
         self._index = index
         self._pos = float(index)
-        self.setFixedHeight(34)
+        self.setFixedHeight(30)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._font = theme.display_font(9, 1.2)
-        self._anim = _animator(self, "_pos", 240, QEasingCurve.Type.OutQuint)
+        self._font = theme.mono(8.5, True, 0.8)
+        self._anim = _animator(self, "_pos", 160)
 
     def set_index(self, index):
         self._index = index
         _animate(self._anim, self._pos, float(index))
 
     def sizeHint(self):
-        w = max(QFontMetrics(self._font).horizontalAdvance(o.upper()) for o in self._options) + 30
-        return QSize(w * len(self._options) + 8, 34)
+        w = max(QFontMetrics(self._font).horizontalAdvance(o.upper()) for o in self._options) + 28
+        return QSize(w * len(self._options) + 4, 30)
 
     def mouseReleaseEvent(self, event):
-        seg = (self.width() - 8) / len(self._options)
-        index = int(max(0, min(len(self._options) - 1, (event.position().x() - 4) // seg)))
+        seg = (self.width() - 4) / len(self._options)
+        index = int(max(0, min(len(self._options) - 1, (event.position().x() - 2) // seg)))
         if index != self._index:
             self.set_index(index)
             self.changed.emit(index)
 
     def paintEvent(self, event):
         p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
         p.setPen(QPen(theme.c("border"), 1))
         p.setBrush(theme.c("surface2"))
-        p.drawPath(theme.chamfer_path(rect, 8))
-        seg = (rect.width() - 8) / len(self._options)
+        p.drawRect(rect)
+        seg = (rect.width() - 4) / len(self._options)
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(theme.c("accent"))
-        p.drawPath(theme.chamfer_path(QRectF(4 + seg * self._pos, 4, seg, rect.height() - 8), 6))
+        p.drawRect(QRectF(2 + seg * self._pos, 2, seg, rect.height() - 4))
         p.setFont(self._font)
         for i, text in enumerate(self._options):
             closeness = max(0.0, 1 - abs(self._pos - i))
             p.setPen(theme.mix(theme.c("muted"), theme.c("accent_text"), closeness))
-            p.drawText(QRectF(4 + seg * i, 0, seg, rect.height()), Qt.AlignmentFlag.AlignCenter,
+            p.drawText(QRectF(2 + seg * i, 0, seg, rect.height()), Qt.AlignmentFlag.AlignCenter,
                        text.upper())
 
 
 class Swatches(QWidget):
-    """Row of colour squares; the selected one gets a red frame."""
+    """Row of colour squares; the selected one is framed."""
 
     changed = Signal(int)
 
@@ -618,14 +635,14 @@ class Swatches(QWidget):
         super().__init__()
         self.colors = [QColor(c) for c in colors]
         self.index = index
-        self.setFixedHeight(30)
+        self.setFixedHeight(26)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def sizeHint(self):
-        return QSize(len(self.colors) * 36, 30)
+        return QSize(len(self.colors) * 30, 26)
 
     def mouseReleaseEvent(self, event):
-        i = int(event.position().x() // 36)
+        i = int(event.position().x() // 30)
         if 0 <= i < len(self.colors) and i != self.index:
             self.index = i
             self.update()
@@ -633,16 +650,12 @@ class Swatches(QWidget):
 
     def paintEvent(self, event):
         p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
         for i, color in enumerate(self.colors):
-            r = QRectF(i * 36 + 3, 3, 24, 24)
-            if i == self.index:
-                p.setPen(QPen(theme.c("text"), 2))
-                p.setBrush(Qt.BrushStyle.NoBrush)
-                p.drawPath(theme.chamfer_path(r.adjusted(-3, -3, 3, 3), 6))
-            p.setPen(Qt.PenStyle.NoPen)
+            r = QRectF(i * 30 + 3.5, 3.5, 19, 19)
+            p.setPen(QPen(theme.c("text") if i == self.index else theme.c("border"),
+                          2 if i == self.index else 1))
             p.setBrush(color)
-            p.drawPath(theme.chamfer_path(r, 5))
+            p.drawRect(r)
 
 
 def hline():

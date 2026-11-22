@@ -14,14 +14,14 @@ from handtrack.vision.geometry import EYE_VIZ_POINTS, FACE_MASK_ANCHOR_IDX, HAND
 logger = logging.getLogger("handtrack")
 
 STICKER_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
-SKELETON_COLOR = (34, 30, 150)     # BGR dark red
-JOINT_COLOR = (196, 202, 208)      # worn off-white
+SKELETON_COLOR = (63, 35, 208)     # BGR signal red
+JOINT_COLOR = (238, 238, 238)
 STICKER_SIZE_BUCKET = 8
 STICKER_ANGLE_BUCKET = 5
 STICKER_CACHE_SIZE = 192
 
-# Drawing colours (BGR): dried red, worn white, muddy purple, slate, rust.
-DRAW_COLORS = ((34, 30, 150), (196, 202, 208), (95, 55, 110), (120, 110, 100), (40, 85, 150))
+# Drawing colours (BGR): signal red, white, purple, safety orange, grey.
+DRAW_COLORS = ((63, 35, 208), (238, 238, 238), (176, 60, 110), (0, 120, 245), (140, 140, 140))
 
 
 # ---------------------------------------------------------------- stickers ----
@@ -194,7 +194,7 @@ def draw_privacy_mask(frame, box):
     r = min(w, h) * 0.22
     cx, cy = x1 + w / 2, y1 + h / 2
     pts = (_SHIELD * r + (cx, cy)).astype(np.int32)
-    cv2.polylines(frame, [pts], True, (34, 30, 150), max(2, int(r / 9)), cv2.LINE_AA)
+    cv2.polylines(frame, [pts], True, (63, 35, 208), max(2, int(r / 9)), cv2.LINE_AA)
 
 
 def draw_afk(frame, title, subtitle):
@@ -203,24 +203,23 @@ def draw_afk(frame, title, subtitle):
     # Diagonal hazard stripes in deep purple.
     step = max(24, w // 24)
     for x in range(-h, w, step * 2):
-        cv2.line(frame, (x, h), (x + h, 0), (24, 18, 22), step // 2)
+        cv2.line(frame, (x, h), (x + h, 0), (22, 22, 24), step // 2)
     (tw, th), _ = cv2.getTextSize(title, cv2.FONT_HERSHEY_DUPLEX, 3.0, 6)
     org = ((w - tw) // 2, (h + th) // 2)
-    cv2.putText(frame, title, org, cv2.FONT_HERSHEY_DUPLEX, 3.0, (34, 30, 150), 6, cv2.LINE_AA)
+    cv2.putText(frame, title, org, cv2.FONT_HERSHEY_DUPLEX, 3.0, (63, 35, 208), 6, cv2.LINE_AA)
     (sw, sh), _ = cv2.getTextSize(subtitle, cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)
     cv2.putText(frame, subtitle, ((w - sw) // 2, org[1] + sh + 26), cv2.FONT_HERSHEY_SIMPLEX,
-                0.85, (180, 186, 192), 2, cv2.LINE_AA)
+                0.85, (225, 225, 228), 2, cv2.LINE_AA)
 
 
 # ----------------------------------------------------------------- drawing ----
 class Drawing:
-    """Pinch-drawn neon strokes.
+    """Pinch-drawn strokes.
 
     * the pinch point is smoothed with an adaptive low-pass filter (steady
       when slow, responsive when fast), so lines do not wobble;
     * a big jump starts a new stroke instead of drawing a line across the frame;
     * points age out from the tail; the last FADE_TAIL seconds fade smoothly;
-    * glow is a blurred, additive copy of the strokes.
     """
 
     FADE_TAIL = 1.2
@@ -234,7 +233,6 @@ class Drawing:
         self.color = DRAW_COLORS[0]
         self.thickness = 6
         self.lifetime = 10.0       # seconds; 0 = keep until cleared
-        self.glow = False
 
     def clear(self):
         self.strokes.clear()
@@ -308,8 +306,6 @@ class Drawing:
             return 1.0
         return max(0.0, min(1.0, (self.lifetime - (now - t)) / self.FADE_TAIL))
 
-    GLOW_SCALE = 4   # glow is blurred at 1/4 resolution: ~16x cheaper, looks the same
-
     def _runs(self, now):
         """Yield (points int32 array, colour, thickness, alpha) per drawable run.
 
@@ -335,8 +331,6 @@ class Drawing:
         if not self.strokes:
             return
         runs = [r for r in self._runs(now) if r[3] > 0.02]
-        if self.glow:
-            self._render_glow(frame, runs)
         # The fading tail tapers away (narrower line) instead of being alpha
         # blended: no per-pixel work, and it reads as a dissolving trail.
         for pts, color, thick, a in runs:
@@ -345,33 +339,3 @@ class Drawing:
                 cv2.circle(frame, tuple(int(v) for v in pts[0]), max(1, width // 2 + 1), color, -1, cv2.LINE_AA)
             else:
                 cv2.polylines(frame, [pts], False, color, width, cv2.LINE_AA)
-            if self.glow and width >= 3:   # white-hot centre: reads as neon
-                hot = tuple(min(255, c + (255 - c) * 0.7) for c in color)
-                cv2.polylines(frame, [pts], False, hot, max(1, width // 3), cv2.LINE_AA)
-
-    def _render_glow(self, frame, runs):
-        fh, fw = frame.shape[:2]
-        s = self.GLOW_SCALE
-        pad = self.thickness * 6
-        allpts = np.concatenate([r[0] for r in runs])
-        x1, y1 = (np.maximum(allpts.min(axis=0) - pad, 0) // s) * s
-        x2, y2 = np.minimum(allpts.max(axis=0) + pad, (fw - 1, fh - 1))
-        w, h = (x2 - x1) // s + 1, (y2 - y1) // s + 1
-        if w < 2 or h < 2:
-            return
-        small = np.zeros((h, w, 3), np.uint8)
-        offset = np.array((x1, y1), np.int32)
-        for pts, color, thick, a in runs:
-            sp = (pts - offset) // s
-            c = tuple(int(v * min(1.0, a)) for v in color)
-            width = max(1, int(thick * 1.8 / s))
-            if len(sp) == 1:
-                cv2.circle(small, tuple(int(v) for v in sp[0]), width, c, -1)
-            else:
-                cv2.polylines(small, [sp], False, c, width)
-        cv2.GaussianBlur(small, (0, 0), max(1.0, self.thickness * 1.4 / s), dst=small)
-        glow = cv2.resize(small, (w * s, h * s), interpolation=cv2.INTER_LINEAR)
-        rh, rw = min(glow.shape[0], fh - y1), min(glow.shape[1], fw - x1)
-        roi = frame[y1:y1 + rh, x1:x1 + rw]
-        cv2.add(roi, glow[:rh, :rw], dst=roi)
-        cv2.add(roi, glow[:rh, :rw], dst=roi)

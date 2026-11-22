@@ -12,7 +12,7 @@ HandTrack's own code is MIT licensed. These components keep their own licenses.
 | NumPy | BSD-3-Clause | https://numpy.org |
 | PyAutoGUI | BSD-3-Clause | https://github.com/asweigart/pyautogui |
 | Lucide icons (`assets/icons`) | ISC | https://lucide.dev |
-| Russo One font (`assets/fonts`) | SIL OFL 1.1 | https://fonts.google.com/specimen/Russo+One |
+| JetBrains Mono font (`assets/fonts`) | SIL OFL 1.1 | https://www.jetbrains.com/lp/mono/ |
 | Python | PSF License | https://www.python.org |
 | Windows only: Unity Capture DirectShow filter | MIT | https://github.com/schellingb/UnityCapture |
 

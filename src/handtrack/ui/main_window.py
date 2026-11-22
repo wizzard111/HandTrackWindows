@@ -256,7 +256,6 @@ class MainWindow(QMainWindow):
         fx.thickness_slider.valueChanged.connect(lambda v: self._set("draw_thickness", int(round(v))))
         fx.lifetime_slider.valueChanged.connect(lambda v: self._set("draw_lifetime", v))
         fx.swatches.changed.connect(lambda i: self._set("draw_color", i))
-        self._bind("draw_glow", fx.glow_row.toggle)
         fx.clear_btn.clicked.connect(self._clear_drawing)
         cam.clear_btn.clicked.connect(self._clear_drawing)
         cal.threshold.valueChanged.connect(lambda v: self._set("threshold", v))
@@ -686,7 +685,7 @@ class MainWindow(QMainWindow):
         for i, gdef in enumerate(self.custom_gestures):
             row = QFrame()
             row.setObjectName("GestureRow")
-            row.setStyleSheet(f"#GestureRow {{ background: {theme.hex_('surface2')}; border-radius: 12px; }}")
+            row.setStyleSheet(f"#GestureRow {{ background: {theme.hex_('surface2')}; border: 1px solid {theme.hex_('border')}; }}")
             h = QHBoxLayout(row)
             h.setContentsMargins(12, 10, 10, 10)
             h.setSpacing(12)

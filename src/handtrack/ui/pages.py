@@ -14,7 +14,14 @@ from handtrack.ui import theme
 from handtrack.ui.visuals import FingerChips, GazeMap, HandDiagram, PreviewWidget
 from handtrack.ui.widgets import (
     Button, Card, Pill, Segmented, SettingRow, SliderRow, Swatches, Toggle, heading, hline, label,
+    tag_label,
 )
+
+
+def number_cards(page, code):
+    """Give the page's panels running codes like 02.01, 02.02 …"""
+    for i, card in enumerate(page.findChildren(Card), 1):
+        card.set_code(f"{code}.{i:02d}")
 from handtrack.vision.render import DRAW_COLORS
 
 FINGER_KEYS = ("finger_thumb", "finger_index", "finger_middle", "finger_ring", "finger_pinky")
@@ -29,10 +36,12 @@ def scroll(widget):
     return area
 
 
-def page_header(title, subtitle=None):
+def page_header(title, subtitle=None, code=None):
     box = QVBoxLayout()
-    box.setSpacing(4)
-    box.addWidget(heading(title, 22, 4))
+    box.setSpacing(2)
+    if code:
+        box.addWidget(tag_label(f"HANDTRACK // {code}", "accent", 8))
+    box.addWidget(heading(title, 18, 2))
     if subtitle:
         box.addWidget(label(subtitle, "subtitle", wrap=True))
     return box
@@ -143,6 +152,7 @@ class CameraPage(QWidget):
         side_area = scroll(side)
         side_area.setFixedWidth(340 + 12)
         root.addWidget(side_area)
+        number_cards(self, "01")
 
 
 # ----------------------------------------------------------------- effects ----
@@ -152,7 +162,7 @@ class EffectsPage(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         inner, col = page_container()
-        col.addLayout(page_header(tr("nav_effects")))
+        col.addLayout(page_header(tr("nav_effects"), code="02"))
         self._tr = tr
 
         grid = QGridLayout()
@@ -192,8 +202,7 @@ class EffectsPage(QWidget):
                                           lambda v: f"{v:.0f} px")
         self.lifetime_slider = SliderRow(tr("draw_lifetime"), 0, 60, s.draw_lifetime, 1,
                                          lambda v: "∞" if v < 0.5 else tr("seconds", v=v))
-        self.glow_row = SettingRow(tr("draw_glow"), None, s.draw_glow)
-        for w in (self.thickness_slider, self.lifetime_slider, self.glow_row):
+        for w in (self.thickness_slider, self.lifetime_slider):
             draw.body.addWidget(w)
         b = QHBoxLayout()
         self.clear_btn = Button(tr("draw_clear_btn"), "eraser", "secondary")
@@ -228,6 +237,7 @@ class EffectsPage(QWidget):
         col.addStretch(1)
         outer.addWidget(scroll(inner))
         self.set_stickers(stickers, stickers_custom)
+        number_cards(self, "02")
 
     def set_stickers(self, stickers, custom):
         while self.thumbs.count():
@@ -260,7 +270,7 @@ class GesturesPage(QWidget):
         outer.setContentsMargins(0, 0, 0, 0)
         inner, col = page_container()
         head = QHBoxLayout()
-        head.addLayout(page_header(tr("nav_gestures"), tr("gesture_designer_intro")), 1)
+        head.addLayout(page_header(tr("nav_gestures"), tr("gesture_designer_intro"), "03"), 1)
         enabled_box = QHBoxLayout()
         enabled_box.setSpacing(10)
         enabled_box.addWidget(label(tr("custom_enabled_cb"), "muted"))
@@ -314,6 +324,7 @@ class GesturesPage(QWidget):
         col.addWidget(self.list_card)
         col.addStretch(1)
         outer.addWidget(scroll(inner))
+        number_cards(self, "03")
 
 
 # ------------------------------------------------------------- calibration ----
@@ -367,7 +378,7 @@ class CalibrationPage(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         inner, col = page_container()
-        col.addLayout(page_header(tr("nav_calibration")))
+        col.addLayout(page_header(tr("nav_calibration"), code="04"))
 
         row = QHBoxLayout()
         row.setSpacing(16)
@@ -409,6 +420,7 @@ class CalibrationPage(QWidget):
         col.addWidget(thr)
         col.addStretch(1)
         outer.addWidget(scroll(inner))
+        number_cards(self, "04")
 
 
 # ---------------------------------------------------------------- settings ----
@@ -418,7 +430,7 @@ class SettingsPage(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         inner, col = page_container()
-        col.addLayout(page_header(tr("nav_settings")))
+        col.addLayout(page_header(tr("nav_settings"), code="05"))
 
         look = Card(tr("sec_appearance"), "moon")
         self.theme_row = SettingRow(tr("theme_dark"), None, s.dark_mode)
@@ -459,3 +471,4 @@ class SettingsPage(QWidget):
         col.addWidget(about)
         col.addStretch(1)
         outer.addWidget(scroll(inner))
+        number_cards(self, "05")

@@ -410,7 +410,7 @@ class Engine(QObject):
         if s.draw_enabled:
             d = self.drawing
             d.color = render.DRAW_COLORS[s.draw_color % len(render.DRAW_COLORS)]
-            d.thickness, d.lifetime, d.glow = s.draw_thickness, s.draw_lifetime, s.draw_glow
+            d.thickness, d.lifetime = s.draw_thickness, s.draw_lifetime
             d.render(frame, now)
         elif self.drawing.strokes:
             self.drawing.clear()
