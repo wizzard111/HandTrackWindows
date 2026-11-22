@@ -51,11 +51,13 @@ def test_key_recorder_finishes_once_and_goes_inert():
     QTest.keyPress(field, Qt.Key.Key_Shift)
     QTest.keyPress(field, Qt.Key.Key_K)
     QTest.keyRelease(field, Qt.Key.Key_K)
-    assert got == ["ctrl+shift+k"]
+    # On macOS Qt reports Cmd as Key_Control, which the app names "command".
+    expected = "shift+command+k" if sys.platform == "darwin" else "ctrl+shift+k"
+    assert got == [expected]
     # Deletion may still be pending: further keys must neither be swallowed nor recorded.
     QTest.keyPress(field, Qt.Key.Key_A)
     QTest.keyRelease(field, Qt.Key.Key_A)
-    assert got == ["ctrl+shift+k"]
+    assert got == [expected]
     assert field.text() == "a"
 
 
