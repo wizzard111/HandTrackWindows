@@ -31,11 +31,13 @@ Running the installer again only adds what is missing or changed.
 ## Features
 
 - **HandTrack Camera**: its own virtual camera (the driver is installed with the app). The resolution adapts by itself and the picture is never stretched. While nobody watches the camera, almost no frames are sent, so the CPU rests.
-- **Hide face**: a plain black square over your face; if the face is lost, the whole frame is covered. The app shows a blinking **COVERING** badge meanwhile.
+- **Hide face**: a plain black square over your face; if the face is lost, the whole frame is covered. A sound plays when it switches on, and a **COVERING** badge shows meanwhile.
 - **Pinch drawing**: lines that fade out smoothly, with jitter smoothing and a choice of colour, thickness and lifetime; clear them with a button or a gesture.
 - **My gestures**: any finger combination → hotkeys, media, volume, programs, links, a screenshot, face hiding, clearing the drawing.
 - **Photos on gestures**: show 1–5 fingers and your picture "sticks" to your hand.
 - **Gaze tracking** with 9-point calibration, **auto-AFK**, gesture calibration for your hand.
+- Runs in the **tray**: closing the window keeps the camera and the call stream going; quick controls in the tray menu.
+- **Log window** with the live log at startup (can be turned off), for when something needs explaining.
 - Dark and light themes.
 
 <table><tr>
@@ -61,7 +63,7 @@ The Linux and macOS versions live in their own repositories with the same code a
 
 ```powershell
 python -m venv .venv; .venv\Scripts\activate
-pip install -r packaging\requirements-dev.txt
+pip install uv; uv pip install -r packaging\requirements-dev.txt --override packaging\overrides.txt
 $env:PYTHONPATH = "src"; python -m handtrack        # run
 python -m pytest                                    # tests
 powershell -ExecutionPolicy Bypass -File packaging\windows\build.ps1   # release dist\HandTrack-windows.zip
@@ -71,11 +73,48 @@ GitHub Actions builds and checks the release on every push; a `v*` tag publishes
 
 ## Performance
 
-Processing runs on its own thread and the neural networks run asynchronously, so the interface
-never waits for the camera. Frames are not converted for the preview or the camera (Qt and the
-driver take BGR directly), stickers are blended with integer maths, the drawing is rendered
-straight into the frame without per-pixel blending (a full-frame drawing: 0.9 ms instead of
-26 ms), and no preview is prepared while it is not visible.
+Measured with [`packaging/benchmark.py`](packaging/benchmark.py): the real app runs each situation for
+20 s in a fresh process while the script samples its CPU and memory once a second. To compare
+operating systems on equal terms, a 1280×720 video at 30 FPS (an empty room, so hand and face
+detection keep searching: the costly case) stands in for the webcam.
+
+Machine: AMD Ryzen 5 5600X (6 cores, 12 threads), 16 GB RAM. HandTrack 8.2.0, Python 3.12.
+CPU is in % of **one** core, summed over all of the app's threads; divide by 12 for the share of the
+whole processor. RAM is the resident set (working set on Windows; includes shared libraries), USS is
+memory used by HandTrack alone.
+
+| Situation | Windows 11: CPU | RAM | USS | Linux (Debian 13): CPU | RAM | USS |
+|---|---:|---:|---:|---:|---:|---:|
+| Window open, camera off | 1.0 % | 192 MB | 124 MB | 0.3 % | 227 MB | 212 MB |
+| In the tray, camera off | 1.2 % | 192 MB | 124 MB | — | — | — |
+| Camera on | 34 % | 224 MB | 151 MB | 28 % | 275 MB | 262 MB |
+| Camera on, window in the tray | 27 % | 224 MB | 151 MB | — | — | — |
+| Camera on + Hide face | 41 % | 221 MB | 148 MB | 29 % | 271 MB | 257 MB |
+| In a call: Hide face + virtual camera, read by a call app | 37 % | 234 MB | 158 MB | — | — | — |
+
+With the real webcam (Windows, Lenovo FHD webcam at 1280×720) the camera itself adds work: camera on
+54 %, Hide face 54 %, in a call 60 % of one core (4–5 % of the whole processor), 260–280 MB RAM.
+Linux was measured under WSL2 (WSLg); "—" means the situation needs a tray or the Windows camera
+driver, which WSL lacks. macOS has not been measured.
+
+How it stays light:
+
+- Idle costs nothing: no timers repaint the window; the preview, status tags and gaze map redraw
+  only when something changes. Before 8.2 an idle window took 11 % of a core.
+- Detection slows down while nothing is in view (hands 15, faces 10 checks a second) and returns to
+  full rate the moment a hand or face appears. Processing runs on its own thread, the neural
+  networks asynchronously; the interface never waits for the camera.
+- Every frame is processed once: the AFK screen is rendered once and copied, the preview is
+  converted to Qt's native format on the video thread and is not prepared while hidden, stickers
+  are blended with integer maths, and the drawing goes straight into the frame.
+- No idle thread pools: OpenCV runs single-threaded and numpy's OpenBLAS uses one thread (its
+  per-core buffers alone were ~350 MB of private memory).
+- Only what is needed is installed: the headless OpenCV, without mediapipe's GUI OpenCV,
+  matplotlib and audio packages. The face-hiding sound is played by the operating system, with no
+  audio library in the app.
+
+Reproduce: `PYTHONPATH=src python packaging/benchmark.py --video any-video.mp4`
+(or `--video camera` for the webcam).
 
 ## License
 

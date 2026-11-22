@@ -18,7 +18,8 @@ data folder, waits for it to settle, then samples the process once a second:
 
 CPU is the process's total over all its threads, in % of one core (so it can
 exceed 100) and in % of the whole machine. Memory is the resident set (RSS /
-Windows working set) and, on Windows, private bytes. Needs psutil.
+Windows working set; includes shared libraries), the unique set size (USS:
+memory only this process uses) and, on Windows, private bytes. Needs psutil.
 """
 
 import argparse
@@ -97,6 +98,8 @@ def format_row(name, r):
     if r.get("skipped"):
         return f"{name:10} skipped ({r['skipped']})"
     priv = f"  private {r['private_mb']:6.0f} MB" if r.get("private_mb") else ""
+    if r.get("uss_mb"):
+        priv += f"  USS {r['uss_mb']:5.0f} MB"
     fps = f"  {r['fps']:5.1f} FPS" if r.get("fps") else ""
     row = (f"{name:10} CPU {r['cpu_core']:6.1f}% of a core ({r['cpu_machine']:4.1f}% of all)"
            f"  RAM {r['rss_mb']:6.0f} MB (peak {r['rss_peak_mb']:4.0f}){priv}{fps}")
@@ -167,6 +170,10 @@ def run_child(args):
             QTimer.singleShot(1000, tick)
 
         def _done(self, samples):
+            try:   # unique set size: memory only this process uses (Linux/macOS/Windows)
+                uss = proc.memory_full_info().uss / 2**20
+            except (psutil.Error, AttributeError):
+                uss = None
             cpus = [s[0] for s in samples]
             cores = psutil.cpu_count() or 1
             state["result"] = {
@@ -175,6 +182,7 @@ def run_child(args):
                 "rss_mb": sum(s[1] for s in samples) / len(samples) / 2**20,
                 "rss_peak_mb": max(s[1] for s in samples) / 2**20,
                 "private_mb": (sum(s[2] for s in samples) / len(samples) / 2**20) or None,
+                "uss_mb": uss,
                 "fps": state["fps"] if live else None, "threads": proc.num_threads(),
                 "by_thread": thread_breakdown(state["threads0"], thread_times(proc),
                                               time.monotonic() - state["t0"]),
