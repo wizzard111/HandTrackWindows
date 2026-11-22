@@ -349,12 +349,12 @@ def _install_windows_driver():
 
 
 def _standby_frame(width, height):
-    frame = np.full((height, width, 3), (12, 6, 10), np.uint8)
+    frame = np.full((height, width, 3), (11, 10, 10), np.uint8)
     text = "HANDTRACK"
     scale = max(0.9, width / 700)
     (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, scale, 2)
     cv2.putText(frame, text, ((width - tw) // 2, (height + th) // 2), cv2.FONT_HERSHEY_DUPLEX,
-                scale, (34, 13, 154), 2, cv2.LINE_AA)
+                scale, (150, 150, 155), 2, cv2.LINE_AA)
     return frame
 
 

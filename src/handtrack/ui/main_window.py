@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QVBoxLayout, QWidget,
 )
 
-from handtrack import __version__, actions, config, paths, vcam
+from handtrack import __version__, actions, config, paths, sound, vcam
 from handtrack.config import ACTIONS_WITH_KEYS, ACTIONS_WITH_PARAM, RESOLUTIONS
 from handtrack.i18n import Translator
 from handtrack.ui import theme
@@ -192,7 +192,7 @@ class MainWindow(QMainWindow):
         brand.addWidget(logo)
         names = QVBoxLayout()
         names.setSpacing(0)
-        title = heading("HandTrack", 15, 3)
+        title = heading("HandTrack", 14, 1.0)
         sub = label(tr("app_subtitle"), "faint")
         names.addWidget(title)
         names.addWidget(sub)
@@ -265,6 +265,7 @@ class MainWindow(QMainWindow):
                 self._bind(name, row.toggle)
         self._bind("custom_gestures_enabled", g.enabled_toggle)
         self._bind("log_window", pref.log_row.toggle)
+        self._bind("sounds", pref.sounds_row.toggle)
 
         fx.afk_slider.valueChanged.connect(lambda v: self._set("afk_timeout", v))
         fx.scale_slider.valueChanged.connect(lambda v: self._set("sticker_scale", v))
@@ -325,6 +326,8 @@ class MainWindow(QMainWindow):
             self._refresh_preview_state()
         elif name == "hide_face":
             self._refresh_covering()
+            if value and self.settings.sounds:
+                sound.play("face-on")
         elif name == "vcam":
             self.engine.sync_vcam()
             self._refresh_vcam()
@@ -389,10 +392,10 @@ class MainWindow(QMainWindow):
         cam.start_btn.set_icon("stop" if running else "play")
         cam.start_btn.set_kind("danger" if running else "primary")
         if self._camera_state == "live":
-            cam.status_pill.set_state(self._status_text, "success", pulse=True)
+            cam.status_pill.set_state(self._status_text, "accent")
             self.side_status.setText(f"● {self._status_text}")
         elif self._camera_state == "starting":
-            cam.status_pill.set_state("…", "warning", pulse=True)
+            cam.status_pill.set_state("…", "muted")
             self.side_status.setText("")
         else:
             cam.status_pill.set_state(tr("status_stopped"), "muted")
@@ -421,13 +424,13 @@ class MainWindow(QMainWindow):
         cam.driver_btn.setVisible(not driver and vcam.driver_files_available())
         pref.driver_btn.setVisible(vcam.driver_files_available())
         pref.driver_pill.set_state(tr("vcam_driver_ok") if driver else tr("vcam_status_missing"),
-                                   "success" if driver else "warning")
+                                   "success" if driver else "accent")
         if self._vcam_info and self.settings.vcam:
             info = self._vcam_info
             if info.get("active"):
-                cam.vcam_pill.set_state(f"{info['w']}×{info['h']}", "success", pulse=True)
+                cam.vcam_pill.set_state(f"{info['w']}×{info['h']}", "accent")
             else:
-                cam.vcam_pill.set_state(tr("vcam_status_waiting"), "accent")
+                cam.vcam_pill.set_state(tr("vcam_status_waiting"), "success")
             cam.vcam_row.toggle.setToolTip(tr("vcam_status_on", dev=info["dev"], w=info["w"], h=info["h"]))
         elif not driver:
             cam.vcam_pill.set_state(tr("vcam_status_missing"), "warning")
@@ -774,7 +777,7 @@ class MainWindow(QMainWindow):
         n = kwargs.get("n", 1)
         cal.steps.set_state(n, n - 1)
         cal.hand_status.setText(self.tr(key, **kwargs))
-        cal.hand_pill.set_state(f"{n}/5", "accent", pulse=True)
+        cal.hand_pill.set_state(f"{n}/5", "success")
 
     def _on_hand_finished(self, ok, data):
         if ok:

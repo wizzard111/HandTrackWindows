@@ -196,9 +196,21 @@ if ($isRelease) {
     # Offline first: succeeds without the network when every library is already
     # installed (or cached); only otherwise download what is missing.
     $req = Join-Path $root "packaging\requirements.txt"
-    if ((Invoke-Quiet $uv @("pip", "install", "--offline", "--quiet", "--python", $py, "-r", $req)) -eq 0) { Have "libraries" } else {
+    $ovr = Join-Path $root "packaging\overrides.txt"   # drops mediapipe's unneeded extras
+    # Older installs carry the GUI OpenCV builds, matplotlib and sounddevice. All
+    # OpenCV builds share one cv2 folder, so remove them together with the
+    # headless one; it is reinstalled cleanly just below.
+    $extras = @("opencv-python", "opencv-contrib-python", "matplotlib", "sounddevice")
+    $eap = $ErrorActionPreference; $ErrorActionPreference = "Continue"   # uv notes go to stderr
+    try { $installed = @(& $uv pip list --python $py --format freeze 2>$null | ForEach-Object { "$_".Split("=")[0].ToLowerInvariant() }) }
+    finally { $ErrorActionPreference = $eap }
+    if ($extras | Where-Object { $installed -contains $_ }) {
+        Invoke-Quiet $uv (@("pip", "uninstall", "--python", $py) + $extras + @("opencv-python-headless")) | Out-Null
+        Did "removed unneeded packages: $(($extras | Where-Object { $installed -contains $_ }) -join ', ')"
+    }
+    if ((Invoke-Quiet $uv @("pip", "install", "--offline", "--quiet", "--python", $py, "-r", $req, "--override", $ovr)) -eq 0) { Have "libraries" } else {
         Write-Host "   Downloading libraries (first time ~2-5 minutes)"
-        & $uv pip install --python $py -r $req
+        & $uv pip install --python $py -r $req --override $ovr
         if ($LASTEXITCODE -ne 0) { Fail "pip install" }
         Did "libraries"
     }

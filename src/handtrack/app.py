@@ -13,6 +13,23 @@ import threading
 from handtrack import APP_NAME, __version__, paths
 
 
+def _enable_crash_log():
+    """On a hard crash (e.g. an access violation in native code) write every
+    thread's Python stack to logs/crash.log, so the cause can be found."""
+    import faulthandler
+    try:
+        path = os.path.join(paths.LOGS_DIR, "crash.log")
+        if os.path.isfile(path) and os.path.getsize(path) > 256 * 1024:
+            os.replace(path, path + ".1")      # keep one old file, start a new one
+        f = open(path, "a", encoding="utf-8")
+        f.write(f"\n--- HandTrack {__version__} started ---\n")
+        f.flush()
+        faulthandler.enable(file=f, all_threads=True)
+        _enable_crash_log.file = f      # keep it open for the process lifetime
+    except OSError:
+        pass
+
+
 def _windows_app_id():
     if sys.platform == "win32":
         try:
@@ -58,6 +75,7 @@ def main(argv=None):
         print(__version__)
         return 0
     logger = paths.setup_logging()
+    _enable_crash_log()
     if "--self-test" in argv:
         return self_test()
     _windows_app_id()
@@ -71,7 +89,15 @@ def main(argv=None):
     from handtrack.ui import theme
     from handtrack.ui.overlays import Splash
 
+    # A GUI build of OpenCV points Qt at its own plugin folder when imported
+    # (breaks PySide6 on Linux/Wayland). HandTrack uses Qt's own plugins.
+    for var in ("QT_QPA_PLATFORM_PLUGIN_PATH", "QT_QPA_FONTDIR"):
+        if "cv2" in os.environ.get(var, ""):
+            del os.environ[var]
     app = QApplication(sys.argv[:1])
+    # Before any worker thread starts: garbage is collected on this thread only.
+    from handtrack.ui.gc_guard import GuiThreadGC
+    app._gc_guard = GuiThreadGC(app)
     app.setApplicationName(APP_NAME)
     app.setDesktopFileName("handtrack")  # Wayland: match the .desktop entry for the icon
     app.setStyle("Fusion")

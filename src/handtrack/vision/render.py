@@ -14,7 +14,7 @@ from handtrack.vision.geometry import EYE_VIZ_POINTS, FACE_MASK_ANCHOR_IDX, HAND
 logger = logging.getLogger("handtrack")
 
 STICKER_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
-SKELETON_COLOR = (34, 13, 154)     # BGR signal red
+SKELETON_COLOR = (200, 200, 200)   # BGR light grey: strict, readable on any scene
 JOINT_COLOR = (238, 238, 238)
 STICKER_SIZE_BUCKET = 8
 STICKER_ANGLE_BUCKET = 5
@@ -26,11 +26,11 @@ DRAW_COLORS = ((34, 13, 154), (238, 238, 238), (176, 60, 110), (0, 120, 245), (1
 
 # ---------------------------------------------------------------- stickers ----
 def make_placeholder_sticker(n, size=400):
-    """Black disc, red ring, white digit."""
+    """Black disc, thin white ring, white digit."""
     img = np.zeros((size, size, 4), np.uint8)
     c = size // 2
-    cv2.circle(img, (c, c), c - 10, (16, 10, 14, 235), -1, cv2.LINE_AA)
-    cv2.circle(img, (c, c), c - 14, (34, 30, 150, 255), 14, cv2.LINE_AA)
+    cv2.circle(img, (c, c), c - 10, (12, 12, 13, 235), -1, cv2.LINE_AA)
+    cv2.circle(img, (c, c), c - 14, (230, 230, 230, 255), 6, cv2.LINE_AA)
     text = str(n)
     scale = size / 90
     (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, scale, 12)
@@ -187,19 +187,36 @@ def draw_privacy_mask(frame, box):
     frame[y1:y2, x1:x2] = 0
 
 
-def draw_afk(frame, title, subtitle):
-    h, w = frame.shape[:2]
-    frame[:] = (12, 6, 10)
-    # Diagonal hazard stripes in deep purple.
-    step = max(24, w // 24)
-    for x in range(-h, w, step * 2):
-        cv2.line(frame, (x, h), (x + h, 0), (22, 22, 24), step // 2)
-    (tw, th), _ = cv2.getTextSize(title, cv2.FONT_HERSHEY_DUPLEX, 3.0, 6)
+_AFK_CACHE = {}
+
+
+def _afk_frame(h, w, title, subtitle):
+    """Dark screen, a grey tape band, white title. Built once per size/text."""
+    frame = np.full((h, w, 3), (11, 10, 10), np.uint8)
+    band_h = max(10, h // 60)
+    band = frame[h // 2 + h // 7: h // 2 + h // 7 + band_h]
+    step = band_h * 2
+    for x in range(-band_h, w, step):
+        cv2.line(band, (x, band_h), (x + band_h, 0), (46, 46, 50), max(2, band_h // 2))
+    (tw, th), _ = cv2.getTextSize(title, cv2.FONT_HERSHEY_DUPLEX, 3.0, 5)
     org = ((w - tw) // 2, (h + th) // 2)
-    cv2.putText(frame, title, org, cv2.FONT_HERSHEY_DUPLEX, 3.0, (34, 13, 154), 6, cv2.LINE_AA)
+    cv2.putText(frame, title, org, cv2.FONT_HERSHEY_DUPLEX, 3.0, (232, 232, 232), 5, cv2.LINE_AA)
     (sw, sh), _ = cv2.getTextSize(subtitle, cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)
     cv2.putText(frame, subtitle, ((w - sw) // 2, org[1] + sh + 26), cv2.FONT_HERSHEY_SIMPLEX,
-                0.85, (225, 225, 228), 2, cv2.LINE_AA)
+                0.85, (150, 150, 155), 2, cv2.LINE_AA)
+    return frame
+
+
+def draw_afk(frame, title, subtitle):
+    """Replace the frame with the AFK screen (cached: a copy per frame, ~0.2 ms)."""
+    h, w = frame.shape[:2]
+    key = (h, w, title, subtitle)
+    cached = _AFK_CACHE.get(key)
+    if cached is None:
+        if len(_AFK_CACHE) > 4:
+            _AFK_CACHE.clear()
+        cached = _AFK_CACHE[key] = _afk_frame(h, w, title, subtitle)
+    np.copyto(frame, cached)
 
 
 # ----------------------------------------------------------------- drawing ----

@@ -1,8 +1,9 @@
 """Colour tokens, fonts, SVG icons, shapes and the stylesheet.
 
-Look: utilitarian instrument panel. Black and white with signal red and deep
-purple; square corners, 1 px rules, monospace labels and read-outs, numbered
-sections. No gradients, no glow.
+Look: a strict instrument panel. Neutral greys; white marks what is on or
+selected; red is a signal only (camera live, face hidden, errors). Square
+corners, 1 px rules, monospace labels, numbered sections, thin grey tapes and
+crosshairs. Nothing blinks or pulses. No gradients, no glow.
 """
 
 import os
@@ -14,22 +15,25 @@ from PySide6.QtSvg import QSvgRenderer
 from handtrack import paths
 
 DARK = {
-    "bg": "#09090a",
-    "sidebar": "#0c0c0e",
-    "surface": "#111113",
-    "surface2": "#17171a",
-    "surface3": "#202024",
-    "border": "#2b2b31",
-    "text": "#ededee",
-    "muted": "#8e8e97",
-    "faint": "#56565d",
-    "accent": "#9a0d22",      # dark blood red
-    "accent2": "#3d2163",     # deep purple
+    "bg": "#0a0a0b",
+    "sidebar": "#0d0d0e",
+    "surface": "#121214",
+    "surface2": "#18181b",
+    "surface3": "#232327",
+    "border": "#2c2c31",
+    "text": "#e6e6e8",
+    "muted": "#8f8f97",
+    "faint": "#5a5a61",
+    "tape": "#3a3a41",        # grey hatching
+    "on": "#e6e6e8",          # switched on / selected
+    "on_text": "#0a0a0b",
+    "accent": "#a3112a",      # signal red: live, face hidden, errors
+    "accent2": "#5a5a61",
     "accent_text": "#ffffff",
-    "success": "#9a0d22",     # "on" states are red
-    "ok": "#ededee",
-    "danger": "#9a0d22",
-    "warning": "#7b4bc0",
+    "success": "#e6e6e8",
+    "ok": "#e6e6e8",
+    "danger": "#a3112a",
+    "warning": "#a3112a",
     "stage": "#000000",
 }
 
@@ -43,13 +47,16 @@ LIGHT = {
     "text": "#0b0b0c",
     "muted": "#55555d",
     "faint": "#8f8f97",
-    "accent": "#850a1c",
-    "accent2": "#3d2163",
+    "tape": "#b9b9c0",
+    "on": "#111113",
+    "on_text": "#ffffff",
+    "accent": "#a3112a",
+    "accent2": "#8f8f97",
     "accent_text": "#ffffff",
-    "success": "#850a1c",
+    "success": "#111113",
     "ok": "#0b0b0c",
-    "danger": "#850a1c",
-    "warning": "#5b2f99",
+    "danger": "#a3112a",
+    "warning": "#a3112a",
     "stage": "#000000",
 }
 
@@ -163,8 +170,8 @@ def mono(size=9, bold=True, spacing=0.6, upper=True):
 
 
 def display_font(size=12, spacing=1.0):
-    """Headings use the bold mono face, upper case."""
-    return mono(size, True, spacing)
+    """Headings use the bold mono face, upper case, with restrained tracking."""
+    return mono(size, True, min(spacing, 1.0) * 0.7)
 
 
 # ------------------------------------------------------------------- icons ----
@@ -287,30 +294,30 @@ def stylesheet():
     QComboBox, QLineEdit {{
         background: {t['surface2']}; border: 1px solid {t['border']}; border-radius: 0;
         padding: 6px 10px; min-height: 20px; font-family: "{mono_f}"; font-size: 9.5pt;
-        selection-background-color: {t['accent']};
+        selection-background-color: {t['surface3']}; selection-color: {t['text']};
     }}
     QComboBox:hover, QLineEdit:hover {{ border-color: {t['faint']}; }}
-    QComboBox:focus, QLineEdit:focus {{ border-color: {t['accent']}; }}
+    QComboBox:focus, QLineEdit:focus {{ border-color: {t['muted']}; }}
     QLineEdit:disabled, QComboBox:disabled {{ color: {t['faint']}; }}
     QComboBox::drop-down {{ border: none; border-left: 1px solid {t['border']}; width: 26px; }}
     QComboBox::down-arrow {{ image: url("{arrow}"); width: 10px; height: 7px; }}
     QComboBox QAbstractItemView {{
         background: {t['surface2']}; border: 1px solid {t['border']}; padding: 0; outline: none;
-        selection-background-color: {t['accent']}; selection-color: white;
+        selection-background-color: {t['surface3']}; selection-color: {t['text']};
         font-family: "{mono_f}";
     }}
 
     QSlider::groove:horizontal {{ height: 2px; background: {t['surface3']}; }}
-    QSlider::sub-page:horizontal {{ background: {t['accent']}; }}
+    QSlider::sub-page:horizontal {{ background: {t['on']}; }}
     QSlider::handle:horizontal {{
         background: {t['text']}; width: 8px; height: 16px; margin: -7px 0;
     }}
-    QSlider::handle:horizontal:hover {{ background: {t['accent']}; }}
+    QSlider::handle:horizontal:hover {{ background: {t['muted']}; }}
 
     QMessageBox {{ background: {t['surface']}; }}
     QMessageBox QPushButton {{
         background: {t['surface3']}; border: 1px solid {t['border']}; padding: 6px 16px;
         min-width: 70px; font-family: "{mono_f}";
     }}
-    QMessageBox QPushButton:hover {{ background: {t['accent']}; color: white; border-color: {t['accent']}; }}
+    QMessageBox QPushButton:hover {{ background: {t['on']}; color: {t['on_text']}; border-color: {t['on']}; }}
     """

@@ -144,13 +144,12 @@ class Splash(QWidget):
         p.drawPath(path)
         p.setClipPath(path)
         p.setClipping(False)
-        p.setPen(QPen(theme.c("accent"), 2))
-        p.drawLine(QPointF(rect.left() + 1, rect.top() + 22), QPointF(rect.left() + 22, rect.top() + 1))
+        theme.draw_corner_marks(p, rect.adjusted(10, 10, -10, -10), theme.c("faint"), 12, 1.5)
 
         if not self._logo.isNull():
             p.drawPixmap(QRectF(rect.center().x() - 30, 30, 60, 60), self._logo, QRectF(self._logo.rect()))
         p.setPen(theme.c("text"))
-        p.setFont(theme.display_font(22, 6))
+        p.setFont(theme.display_font(20, 1.0))
         p.drawText(QRectF(0, 100, rect.width(), 40), Qt.AlignmentFlag.AlignCenter, self._title)
         p.setPen(theme.c("muted"))
         p.setFont(theme.font(9.5))
@@ -162,7 +161,7 @@ class Splash(QWidget):
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(theme.c("surface3"))
         p.drawRect(bar)
-        p.setBrush(theme.c("accent"))
+        p.setBrush(theme.c("on"))
         if self._progress is None:
             w = bar.width() * 0.3
             x = bar.left() + (bar.width() + w) * ((self._phase * 2.2) % 1.0) - w

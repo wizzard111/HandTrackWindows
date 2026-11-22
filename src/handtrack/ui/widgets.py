@@ -134,14 +134,14 @@ class Toggle(QAbstractButton):
         # Sliding fill block.
         x = rect.left() + half * self._pos
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(theme.mix(theme.c("surface3"), theme.c("accent"), self._pos))
+        p.setBrush(theme.mix(theme.c("surface3"), theme.c("on"), self._pos))
         p.setPen(Qt.PenStyle.NoPen)
         p.drawRect(QRectF(x + 2, rect.top() + 2, half - 4, rect.height() - 4))
         p.setFont(self._font)
         on = self._pos > 0.5
         p.setPen(theme.c("faint") if on else theme.c("text"))
         p.drawText(QRectF(rect.left(), rect.top(), half, rect.height()), Qt.AlignmentFlag.AlignCenter, "OFF")
-        p.setPen(theme.c("accent_text") if on else theme.c("faint"))
+        p.setPen(theme.c("on_text") if on else theme.c("faint"))
         p.drawText(QRectF(rect.left() + half, rect.top(), half, rect.height()),
                    Qt.AlignmentFlag.AlignCenter, "ON")
 
@@ -150,7 +150,8 @@ class Toggle(QAbstractButton):
 class Button(QAbstractButton):
     """Square button with an icon and monospace caption.
 
-    kind: primary (solid red), secondary (outlined), ghost (text only), danger.
+    kind: primary (solid white), secondary (outlined), ghost (text only),
+    danger (outlined in signal red).
     """
 
     def __init__(self, text="", icon=None, kind="secondary", parent=None):
@@ -202,11 +203,16 @@ class Button(QAbstractButton):
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
         h = self._hover
         black = QColor("black")
-        if self.kind in ("primary", "danger"):
-            base = theme.c("danger" if self.kind == "danger" else "accent")
+        if self.kind == "primary":
+            base = theme.mix(theme.c("on"), theme.c("muted"), 0.25 * h)
             p.setBrush(theme.mix(base, black, 0.25 * self._press))
-            p.setPen(QPen(theme.mix(base, QColor("white"), 0.35 * h), 1))
-            fg = theme.c("accent_text")
+            p.setPen(Qt.PenStyle.NoPen)
+            fg = theme.c("on_text")
+        elif self.kind == "danger":
+            red = theme.c("danger")
+            p.setBrush(theme.mix(theme.c("surface2"), red, 0.12 + 0.12 * h))
+            p.setPen(QPen(red, 1))
+            fg = theme.mix(red, QColor("white"), 0.55)
         elif self.kind == "ghost":
             p.setBrush(theme.c("surface3", 0.8 * h))
             p.setPen(Qt.PenStyle.NoPen)
@@ -216,8 +222,6 @@ class Button(QAbstractButton):
             p.setPen(QPen(theme.mix(theme.c("border"), theme.c("text"), 0.5 * h), 1))
             fg = theme.c("text")
         p.drawRect(rect)
-        if self.kind in ("primary", "danger") and h > 0.01:
-            theme.draw_hazard(p, rect.adjusted(1, 1, -1, -1), theme.c("stage", 0.22 * h), 12)
 
         text = self.text().upper()
         fm = QFontMetrics(self._font)
@@ -236,8 +240,8 @@ class Button(QAbstractButton):
 
 # -------------------------------------------------------------------- card ----
 class Card(QFrame):
-    """Panel: 1 px frame, header strip with a red marker, title, optional
-    section code on the right, and a rule under the header."""
+    """Panel: 1 px frame, header strip with title and section code, a rule
+    under the header and a short grey tape in the corner."""
 
     def __init__(self, title=None, icon=None, parent=None, spacing=12, code=None):
         super().__init__(parent)
@@ -251,7 +255,7 @@ class Card(QFrame):
             self.header.setSpacing(8)
             if icon:
                 self.header.addWidget(Icon(icon, 14, "muted"))
-            self.title_label = heading(title, 9.5, 1.2)
+            self.title_label = heading(title, 9, 1.0)
             self.header.addWidget(self.title_label)
             self.header.addStretch(1)
             self.code_label = tag_label(code or "", "faint")
@@ -274,12 +278,7 @@ class Card(QFrame):
             p.fillRect(QRectF(rect.left(), rect.top(), rect.width(), y - rect.top()), theme.c("surface2"))
             p.setPen(QPen(theme.c("border"), 1))
             p.drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y))
-            p.setPen(Qt.PenStyle.NoPen)
-            p.setBrush(theme.c("accent"))
-            p.drawRect(QRectF(rect.left(), rect.top(), 5, y - rect.top()))      # header block
-            p.drawRect(QRectF(rect.left(), rect.top(), rect.width(), 2))          # red top edge
-            theme.draw_hazard(p, QRectF(rect.right() - 46, rect.top() + 2, 46, 5), theme.c("accent"),
-                              7, theme.c("stage"))
+            theme.draw_hazard(p, QRectF(rect.right() - 40, rect.top() + 1, 40, 4), theme.c("tape"), 6)
 
 
 # ------------------------------------------------------------- setting row ----
@@ -348,28 +347,20 @@ class SliderRow(QWidget):
 
 # -------------------------------------------------------------------- pill ----
 class Pill(QWidget):
-    """Status tag: a square indicator (blinks while active) and mono text."""
+    """Status tag: a square indicator and mono text. Static: nothing blinks."""
 
     def __init__(self, text="", color="muted", pulse=False):
         super().__init__()
-        self._text, self._color, self._blink = text, color, True
-        self._font = theme.mono(7.5, True, 0.8)
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._tick)
+        self._text, self._color = text, color
+        self._font = theme.mono(7.5, True, 0.6)
         self.set_state(text, color, pulse)
 
     def set_state(self, text, color="muted", pulse=False):
+        """``pulse`` is accepted for call-site compatibility and ignored."""
+        if (text, color) == (self._text, self._color) and self.isVisible():
+            return
         self._text, self._color = text, color
-        if pulse and not self._timer.isActive():
-            self._timer.start(600)
-        elif not pulse:
-            self._timer.stop()
-            self._blink = True
         self.updateGeometry()
-        self.update()
-
-    def _tick(self):
-        self._blink = not self._blink
         self.update()
 
     def sizeHint(self):
@@ -382,11 +373,11 @@ class Pill(QWidget):
         p = QPainter(self)
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
         color = theme.c(self._color)
-        p.setPen(QPen(theme.c(self._color, 0.6), 1))
-        p.setBrush(theme.c(self._color, 0.08))
+        p.setPen(QPen(theme.c(self._color, 0.55), 1))
+        p.setBrush(theme.c(self._color, 0.06))
         p.drawRect(rect)
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(color if self._blink else theme.c(self._color, 0.25))
+        p.setBrush(color)
         p.drawRect(QRectF(7, rect.center().y() - 3, 6, 6))
         p.setPen(color)
         p.setFont(self._font)
@@ -406,7 +397,7 @@ class NavButton(QAbstractButton):
         self.setFixedHeight(40)
         self._hover = 0.0
         self._hover_anim = _animator(self, "_hover")
-        self._font = theme.mono(9, True, 1.0)
+        self._font = theme.mono(9, True, 0.6)
         self._num_font = theme.mono(8, False, 0.4)
 
     def enterEvent(self, event):
@@ -425,7 +416,7 @@ class NavButton(QAbstractButton):
             p.drawRect(rect)
         fg = theme.c("text") if active else theme.mix(theme.c("muted"), theme.c("text"), self._hover)
         p.setFont(self._num_font)
-        p.setPen(theme.c("accent") if active else theme.c("faint"))
+        p.setPen(theme.c("muted") if active else theme.c("faint"))
         p.drawText(QRectF(12, 0, 22, rect.height()), Qt.AlignmentFlag.AlignVCenter, self._index)
         theme.draw_icon(p, self._icon, QRectF(38, rect.center().y() - 8, 16, 16), fg)
         p.setPen(fg)
@@ -441,11 +432,10 @@ class NavIndicator(QWidget):
         p = QPainter(self)
         rect = QRectF(self.rect())
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(theme.mix(theme.c("surface3"), theme.c("accent"), 0.22))
+        p.setBrush(theme.c("surface3"))
         p.drawRect(rect)
-        p.setBrush(theme.c("accent"))
-        p.drawRect(QRectF(0, 0, 4, rect.height()))
-        theme.draw_hazard(p, QRectF(rect.right() - 18, 0, 18, rect.height()), theme.c("accent", 0.55), 6)
+        p.setBrush(theme.c("on"))
+        p.drawRect(QRectF(0, 0, 2, rect.height()))
 
 
 class NavList(QWidget):

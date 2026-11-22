@@ -11,6 +11,7 @@ through callbacks. The GUI only receives Qt signals and never blocks.
 """
 
 import logging
+import os
 import sys
 import threading
 import time
@@ -18,6 +19,11 @@ import types
 
 import cv2
 import numpy as np
+
+# OpenCV would spread every resize/flip/convert of these small frames over a
+# pool of threads (one per core) that mostly spin-wait; on one thread the same
+# work costs less CPU in total. HANDTRACK_CV_THREADS overrides (benchmarks).
+cv2.setNumThreads(int(os.environ.get("HANDTRACK_CV_THREADS", "1")))
 from PySide6.QtCore import QObject, Signal
 
 from handtrack import paths
@@ -61,6 +67,12 @@ logger = logging.getLogger("handtrack")
 HAND_INTERVAL = 1.0 / 30.0
 FACE_GAZE_INTERVAL = 1.0 / 20.0
 FACE_AFK_INTERVAL = 1.0 / 10.0
+# Nothing in view for SEARCH_AFTER seconds: look for it less often. Detection
+# (no hand/face to track) is the expensive path, and a hand or face that comes
+# back is still picked up within 1/15 s or 1/10 s, then full rate resumes.
+SEARCH_AFTER = 1.0
+HAND_SEARCH_INTERVAL = 1.0 / 15.0
+FACE_SEARCH_INTERVAL = 1.0 / 10.0
 RESULT_STALE_SECONDS = 0.35
 PRIVACY_STALE_SECONDS = 0.15
 STATS_INTERVAL = 0.1
@@ -78,6 +90,37 @@ GAZE_ZONE_KEYS = (
     ("gaze_zone_mid_left", "gaze_zone_mid_center", "gaze_zone_mid_right"),
     ("gaze_zone_bottom_left", "gaze_zone_bottom_center", "gaze_zone_bottom_right"),
 )
+
+
+class VideoFileSource:
+    """Stand-in for a webcam, for benchmarks and tests: plays a video file in a
+    loop at its frame rate. Selected with HANDTRACK_VIDEO_SOURCE=<file>."""
+
+    def __init__(self, path):
+        self._cap = cv2.VideoCapture(path)
+        fps = self._cap.get(cv2.CAP_PROP_FPS)
+        self._interval = 1.0 / (fps if 1 <= fps <= 120 else 30.0)
+        self._next = time.monotonic()
+
+    def isOpened(self):
+        return self._cap.isOpened()
+
+    def read(self):
+        delay = self._next - time.monotonic()
+        if delay > 0:
+            time.sleep(delay)
+        self._next = max(self._next + self._interval, time.monotonic() - self._interval)
+        ok, frame = self._cap.read()
+        if not ok:  # loop
+            self._cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ok, frame = self._cap.read()
+        return ok, frame
+
+    def set(self, *_args):
+        return False
+
+    def release(self):
+        self._cap.release()
 
 
 class LatestFrameCapture:
@@ -301,6 +344,10 @@ class Engine(QObject):
     # -------------------------------------------------------------- worker ----
     def _open_camera(self):
         s = self.settings
+        video = os.environ.get("HANDTRACK_VIDEO_SOURCE")
+        if video:
+            source = VideoFileSource(video)
+            return (source, s.resolution_tuple()) if source.isOpened() else (None, None)
         if sys.platform == "win32":
             backend = cv2.CAP_DSHOW
         elif sys.platform == "darwin":
@@ -389,13 +436,8 @@ class Engine(QObject):
         gaze_calibrating = self._gaze_calib is not None
 
         need_face = s.hide_face or s.gaze or gaze_calibrating or s.afk_enabled
-        if s.hide_face or gaze_calibrating:
-            face_interval = HAND_INTERVAL
-        elif s.gaze:
-            face_interval = FACE_GAZE_INTERVAL
-        else:
-            face_interval = FACE_AFK_INTERVAL
-        self._submit(frame, now, st, need_face, face_interval)
+        hand_interval, face_interval = self._detection_intervals(st, now)
+        self._submit(frame, now, st, need_face, face_interval, hand_interval)
 
         with self._lock:
             hand_result, hand_ts, hand_at = self._hand
@@ -405,6 +447,8 @@ class Engine(QObject):
         st["hand_used"] = hand_ts
         if now - hand_at > RESULT_STALE_SECONDS:
             hand_result, hand_new = None, False
+        if hand_result is not None and hand_result.hand_landmarks:
+            st["hand_seen"] = now
 
         face_new = face_ts != st["face_used"]
         st["face_used"] = face_ts
@@ -445,6 +489,9 @@ class Engine(QObject):
                 if preview is frame:
                     preview = frame.copy()
                 render.draw_corner_counter(preview, counter)
+            # 32-bit BGRA is Qt's native raster format: the GUI thread then draws
+            # it without a per-frame colour conversion of its own.
+            preview = cv2.cvtColor(preview, cv2.COLOR_BGR2BGRA)
             self._preview_busy = True
             self.frame_ready.emit(preview)
 
@@ -460,8 +507,28 @@ class Engine(QObject):
             stats["fps"] = st["fps"]
             self.stats.emit(stats)
 
-    def _submit(self, frame, now, st, need_face, face_interval):
-        hand_due = now - st["hand_submit"] >= HAND_INTERVAL
+    def _detection_intervals(self, st, now):
+        """Seconds between hand and face detections for this frame. Full rate
+        while something is in view; slower search once it has been gone for
+        SEARCH_AFTER seconds (never during a calibration)."""
+        s = self.settings
+        gaze_calibrating = self._gaze_calib is not None
+        if s.hide_face or gaze_calibrating:
+            face_interval = HAND_INTERVAL
+        elif s.gaze:
+            face_interval = FACE_GAZE_INTERVAL
+        else:
+            face_interval = FACE_AFK_INTERVAL
+        hand_seen = st.setdefault("hand_seen", now)     # counts from the first frame
+        hand_interval = HAND_INTERVAL
+        if self._hand_calib is None and now - hand_seen > SEARCH_AFTER:
+            hand_interval = HAND_SEARCH_INTERVAL
+        if not gaze_calibrating and now - st["face_seen"] > SEARCH_AFTER:
+            face_interval = max(face_interval, FACE_SEARCH_INTERVAL)
+        return hand_interval, face_interval
+
+    def _submit(self, frame, now, st, need_face, face_interval, hand_interval=HAND_INTERVAL):
+        hand_due = now - st["hand_submit"] >= hand_interval
         face_due = need_face and now - st["face_submit"] >= face_interval
         if not (hand_due or face_due) or not self._landmarkers:
             return

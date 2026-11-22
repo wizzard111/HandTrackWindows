@@ -1,0 +1,13 @@
+# uv dependency overrides: uv pip install -r requirements.txt --override overrides.txt
+#
+# mediapipe pulls in the full GUI build of OpenCV (opencv-contrib-python),
+# matplotlib and sounddevice. HandTrack needs none of them: it uses the
+# headless OpenCV from requirements.txt, never mediapipe's plotting or audio
+# helpers. Two OpenCV builds would also share one cv2 folder and overwrite each
+# other, and the GUI build points Qt at its own plugins (breaks PySide6 on
+# Linux/Wayland). A marker that never matches removes the dependency:
+# ~130 MB less to install, ~75 MB less private memory at run time.
+opencv-contrib-python ; sys_platform == "never"
+opencv-python ; sys_platform == "never"
+matplotlib ; sys_platform == "never"
+sounddevice ; sys_platform == "never"

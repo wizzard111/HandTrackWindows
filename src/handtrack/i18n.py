@@ -161,7 +161,7 @@ STRINGS = {
 
     "gesture_designer_title": "Gesture designer",
     "gesture_designer_intro": (
-        "Click the fingers: red means raised, grey means bent. The action "
+        "Click the fingers: white means raised, grey means bent. The action "
         "runs when the camera sees exactly this combination."
     ),
     "finger_thumb": "Thumb", "finger_index": "Index",
@@ -211,6 +211,8 @@ STRINGS = {
     "settings_open_data": "Open",
     "settings_about": "About",
     "log_window_cb": "Log window at startup",
+    "sounds_cb": "Sounds",
+    "sounds_desc": "Play a sound when face hiding switches on.",
     "tray_open": "Open HandTrack",
     "tray_start": "Start camera",
     "tray_stop": "Stop camera",

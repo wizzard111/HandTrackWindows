@@ -19,15 +19,15 @@ from handtrack.ui.widgets import (
 
 
 class HazardRule(QWidget):
-    """Short warning-tape bar under a page title."""
+    """Short grey tape under a page title."""
 
     def __init__(self, width=120):
         super().__init__()
-        self.setFixedSize(width, 6)
+        self.setFixedSize(width, 4)
 
     def paintEvent(self, event):
         p = QPainter(self)
-        theme.draw_hazard(p, QRectF(self.rect()), theme.c("accent"), 8, theme.c("stage"))
+        theme.draw_hazard(p, QRectF(self.rect()), theme.c("tape"), 6)
 
 
 def number_cards(page, code):
@@ -52,8 +52,8 @@ def page_header(title, subtitle=None, code=None):
     box = QVBoxLayout()
     box.setSpacing(2)
     if code:
-        box.addWidget(tag_label(f"HANDTRACK // SECTION {code}", "accent", 8))
-    box.addWidget(heading(title, 24, 3))
+        box.addWidget(tag_label(f"HANDTRACK // SECTION {code}", "faint", 8))
+    box.addWidget(heading(title, 17, 1.0))
     box.addWidget(HazardRule())
     if subtitle:
         box.addWidget(label(subtitle, "subtitle", wrap=True))
@@ -265,7 +265,7 @@ class EffectsPage(QWidget):
             pix = QPixmap.fromImage(qimg)
             pix.setDevicePixelRatio(2.0)
             img.setPixmap(pix)
-            border = theme.hex_("accent") if custom[n] else theme.hex_("border")
+            border = theme.hex_("muted") if custom[n] else theme.hex_("border")
             img.setStyleSheet(f"background: {theme.hex_('stage')}; border: 1px solid {border};")
             img.setAlignment(Qt.AlignmentFlag.AlignCenter)
             img.setToolTip(f"gesture_{n} · " + (self._tr("sticker_custom") if custom[n]
@@ -361,22 +361,22 @@ class StepDots(QWidget):
         p.setPen(QPen(theme.c("surface3"), 3))
         p.drawLine(18, int(y), int(self.width() - 18), int(y))
         if self.done > 0:
-            p.setPen(QPen(theme.c("accent"), 3))
+            p.setPen(QPen(theme.c("on"), 3))
             p.drawLine(18, int(y), int(18 + gap * min(self.done, n - 1)), int(y))
         p.setFont(theme.display_font(9, 0))
         for i in range(n):
             x = 18 + gap * i
             current = i + 1 == self.current
             if i < self.done:
-                p.setBrush(theme.c("accent"))
-                fg = theme.c("accent_text")
+                p.setBrush(theme.c("on"))
+                fg = theme.c("on_text")
             elif current:
-                p.setBrush(theme.c("accent2"))
-                fg = theme.c("accent_text")
+                p.setBrush(theme.c("surface2"))
+                fg = theme.c("text")
             else:
                 p.setBrush(theme.c("surface3"))
                 fg = theme.c("muted")
-            p.setPen(QPen(theme.c("accent"), 2) if current else Qt.PenStyle.NoPen)
+            p.setPen(QPen(theme.c("on"), 2) if current else Qt.PenStyle.NoPen)
             r = 14 if current else 12
             box = QRectF(x - r, y - r, 2 * r, 2 * r)
             p.drawPath(theme.chamfer_path(box, 5, "tl,tr,br,bl"))
@@ -447,6 +447,8 @@ class SettingsPage(QWidget):
         look = Card(tr("sec_appearance"), "moon")
         self.theme_row = SettingRow(tr("theme_dark"), None, s.dark_mode)
         look.body.addWidget(self.theme_row)
+        self.sounds_row = SettingRow(tr("sounds_cb"), tr("sounds_desc"), s.sounds)
+        look.body.addWidget(self.sounds_row)
         self.log_row = SettingRow(tr("log_window_cb"), tr("log_window_desc"), s.log_window)
         look.body.addWidget(self.log_row)
         col.addWidget(look)
