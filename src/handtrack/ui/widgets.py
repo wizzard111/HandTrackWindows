@@ -135,6 +135,7 @@ class Toggle(QAbstractButton):
         x = rect.left() + half * self._pos
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(theme.mix(theme.c("surface3"), theme.c("accent"), self._pos))
+        p.setPen(Qt.PenStyle.NoPen)
         p.drawRect(QRectF(x + 2, rect.top() + 2, half - 4, rect.height() - 4))
         p.setFont(self._font)
         on = self._pos > 0.5
@@ -203,8 +204,8 @@ class Button(QAbstractButton):
         black = QColor("black")
         if self.kind in ("primary", "danger"):
             base = theme.c("danger" if self.kind == "danger" else "accent")
-            p.setBrush(theme.mix(base, black, 0.18 * self._press + 0.0 * h))
-            p.setPen(QPen(theme.mix(base, QColor("white"), 0.25 * h), 1))
+            p.setBrush(theme.mix(base, black, 0.25 * self._press))
+            p.setPen(QPen(theme.mix(base, QColor("white"), 0.35 * h), 1))
             fg = theme.c("accent_text")
         elif self.kind == "ghost":
             p.setBrush(theme.c("surface3", 0.8 * h))
@@ -215,6 +216,8 @@ class Button(QAbstractButton):
             p.setPen(QPen(theme.mix(theme.c("border"), theme.c("text"), 0.5 * h), 1))
             fg = theme.c("text")
         p.drawRect(rect)
+        if self.kind in ("primary", "danger") and h > 0.01:
+            theme.draw_hazard(p, rect.adjusted(1, 1, -1, -1), theme.c("stage", 0.22 * h), 12)
 
         text = self.text().upper()
         fm = QFontMetrics(self._font)
@@ -268,12 +271,15 @@ class Card(QFrame):
         p.drawRect(rect)
         if self._has_header:
             y = self.header.geometry().bottom() + 8.5
+            p.fillRect(QRectF(rect.left(), rect.top(), rect.width(), y - rect.top()), theme.c("surface2"))
             p.setPen(QPen(theme.c("border"), 1))
             p.drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y))
-            # Red marker on the header edge.
             p.setPen(Qt.PenStyle.NoPen)
             p.setBrush(theme.c("accent"))
-            p.drawRect(QRectF(rect.left(), rect.top(), 3, y - rect.top()))
+            p.drawRect(QRectF(rect.left(), rect.top(), 5, y - rect.top()))      # header block
+            p.drawRect(QRectF(rect.left(), rect.top(), rect.width(), 2))          # red top edge
+            theme.draw_hazard(p, QRectF(rect.right() - 46, rect.top() + 2, 46, 5), theme.c("accent"),
+                              7, theme.c("stage"))
 
 
 # ------------------------------------------------------------- setting row ----
@@ -435,10 +441,11 @@ class NavIndicator(QWidget):
         p = QPainter(self)
         rect = QRectF(self.rect())
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(theme.c("surface3"))
+        p.setBrush(theme.mix(theme.c("surface3"), theme.c("accent"), 0.22))
         p.drawRect(rect)
         p.setBrush(theme.c("accent"))
-        p.drawRect(QRectF(0, 0, 3, rect.height()))
+        p.drawRect(QRectF(0, 0, 4, rect.height()))
+        theme.draw_hazard(p, QRectF(rect.right() - 18, 0, 18, rect.height()), theme.c("accent", 0.55), 6)
 
 
 class NavList(QWidget):

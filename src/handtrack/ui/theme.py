@@ -23,12 +23,12 @@ DARK = {
     "text": "#ededee",
     "muted": "#8e8e97",
     "faint": "#56565d",
-    "accent": "#d0233f",      # signal red
+    "accent": "#9a0d22",      # dark blood red
     "accent2": "#3d2163",     # deep purple
     "accent_text": "#ffffff",
-    "success": "#d0233f",     # "on" states are red
+    "success": "#9a0d22",     # "on" states are red
     "ok": "#ededee",
-    "danger": "#d0233f",
+    "danger": "#9a0d22",
     "warning": "#7b4bc0",
     "stage": "#000000",
 }
@@ -43,12 +43,12 @@ LIGHT = {
     "text": "#0b0b0c",
     "muted": "#55555d",
     "faint": "#8f8f97",
-    "accent": "#b8132f",
+    "accent": "#850a1c",
     "accent2": "#3d2163",
     "accent_text": "#ffffff",
-    "success": "#b8132f",
+    "success": "#850a1c",
     "ok": "#0b0b0c",
-    "danger": "#b8132f",
+    "danger": "#850a1c",
     "warning": "#5b2f99",
     "stage": "#000000",
 }
@@ -235,6 +235,28 @@ def draw_corner_marks(painter, rect, color, length=8, width=1.5):
                          (r.left(), r.bottom(), 1, -1), (r.right(), r.bottom(), -1, -1)):
         painter.drawLine(QPointF(x, y), QPointF(x + dx * length, y))
         painter.drawLine(QPointF(x, y), QPointF(x, y + dy * length))
+
+
+def draw_hazard(painter, rect, color, step=8, back=None):
+    """Diagonal warning-tape stripes clipped to ``rect``."""
+    r = QRectF(rect)
+    painter.save()
+    painter.setClipRect(r)
+    if back is not None:
+        painter.fillRect(r, back)
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(color)
+    x = r.left() - r.height()
+    while x < r.right():
+        path = QPainterPath()
+        path.moveTo(x, r.bottom())
+        path.lineTo(x + step / 2, r.bottom())
+        path.lineTo(x + step / 2 + r.height(), r.top())
+        path.lineTo(x + r.height(), r.top())
+        path.closeSubpath()
+        painter.drawPath(path)
+        x += step
+    painter.restore()
 
 
 def stylesheet():

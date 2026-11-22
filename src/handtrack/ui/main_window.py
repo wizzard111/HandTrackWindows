@@ -19,6 +19,7 @@ from handtrack.i18n import Translator
 from handtrack.ui import theme
 from handtrack.ui.overlays import GazeCalibrationOverlay
 from handtrack.ui.pages import (
+    HazardRule,
     FINGER_KEYS, CalibrationPage, CameraPage, EffectsPage, GesturesPage, SettingsPage,
 )
 from handtrack.ui.visuals import CoveringBadge, PreviewWidget, pattern_icon
@@ -178,13 +179,15 @@ class MainWindow(QMainWindow):
         brand.addWidget(logo)
         names = QVBoxLayout()
         names.setSpacing(0)
-        title = heading("HandTrack", 14, 2.5)
+        title = heading("HandTrack", 15, 3)
         sub = label(tr("app_subtitle"), "faint")
         names.addWidget(title)
         names.addWidget(sub)
         brand.addLayout(names, 1)
         side.addLayout(brand)
-        side.addSpacing(22)
+        side.addSpacing(10)
+        side.addWidget(HazardRule(200))
+        side.addSpacing(14)
 
         self.nav = NavList()
         for key, icon in (("nav_camera", "camera"), ("nav_effects", "effects"),

@@ -14,14 +14,14 @@ from handtrack.vision.geometry import EYE_VIZ_POINTS, FACE_MASK_ANCHOR_IDX, HAND
 logger = logging.getLogger("handtrack")
 
 STICKER_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
-SKELETON_COLOR = (63, 35, 208)     # BGR signal red
+SKELETON_COLOR = (34, 13, 154)     # BGR signal red
 JOINT_COLOR = (238, 238, 238)
 STICKER_SIZE_BUCKET = 8
 STICKER_ANGLE_BUCKET = 5
 STICKER_CACHE_SIZE = 192
 
 # Drawing colours (BGR): signal red, white, purple, safety orange, grey.
-DRAW_COLORS = ((63, 35, 208), (238, 238, 238), (176, 60, 110), (0, 120, 245), (140, 140, 140))
+DRAW_COLORS = ((34, 13, 154), (238, 238, 238), (176, 60, 110), (0, 120, 245), (140, 140, 140))
 
 
 # ---------------------------------------------------------------- stickers ----
@@ -194,7 +194,7 @@ def draw_privacy_mask(frame, box):
     r = min(w, h) * 0.22
     cx, cy = x1 + w / 2, y1 + h / 2
     pts = (_SHIELD * r + (cx, cy)).astype(np.int32)
-    cv2.polylines(frame, [pts], True, (63, 35, 208), max(2, int(r / 9)), cv2.LINE_AA)
+    cv2.polylines(frame, [pts], True, (34, 13, 154), max(2, int(r / 9)), cv2.LINE_AA)
 
 
 def draw_afk(frame, title, subtitle):
@@ -206,7 +206,7 @@ def draw_afk(frame, title, subtitle):
         cv2.line(frame, (x, h), (x + h, 0), (22, 22, 24), step // 2)
     (tw, th), _ = cv2.getTextSize(title, cv2.FONT_HERSHEY_DUPLEX, 3.0, 6)
     org = ((w - tw) // 2, (h + th) // 2)
-    cv2.putText(frame, title, org, cv2.FONT_HERSHEY_DUPLEX, 3.0, (63, 35, 208), 6, cv2.LINE_AA)
+    cv2.putText(frame, title, org, cv2.FONT_HERSHEY_DUPLEX, 3.0, (34, 13, 154), 6, cv2.LINE_AA)
     (sw, sh), _ = cv2.getTextSize(subtitle, cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)
     cv2.putText(frame, subtitle, ((w - sw) // 2, org[1] + sh + 26), cv2.FONT_HERSHEY_SIMPLEX,
                 0.85, (225, 225, 228), 2, cv2.LINE_AA)

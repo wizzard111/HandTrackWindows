@@ -36,9 +36,10 @@ def paint_covering(p, rect, phase, title, subtitle):
     p.drawRect(rect)
     p.setPen(Qt.PenStyle.NoPen)
     p.setBrush(red)
-    p.drawRect(QRectF(rect.left(), rect.top(), 3, rect.height()))
+    p.drawRect(QRectF(rect.left(), rect.top(), 4, rect.height()))
+    theme.draw_hazard(p, QRectF(rect.left() + 4, rect.bottom() - 4, rect.width() - 4, 4), red, 7)
 
-    cx, cy = rect.left() + 26, rect.center().y()
+    cx, cy = rect.left() + 26, rect.center().y() - 1
     on = int(phase * 4) % 2 == 0           # ~2 blinks per second
     p.setBrush(red if on else theme.c("accent", 0.45))
     p.drawPath(shield_path(cx, cy, 11))
@@ -48,7 +49,7 @@ def paint_covering(p, rect, phase, title, subtitle):
     p.drawLine(QPointF(cx - 1, cy + 3), QPointF(cx + 4, cy - 3))
 
     dots = "." * (1 + int(phase * 6) % 3)
-    p.setPen(red)
+    p.setPen(theme.mix(red, QColor("white"), 0.3))
     p.setFont(theme.mono(10, True, 1.5))
     p.drawText(QRectF(cx + 20, rect.top() + 5, rect.width() - 56, 20),
                Qt.AlignmentFlag.AlignVCenter, title + dots)
@@ -189,7 +190,7 @@ class PreviewWidget(QWidget):
         p.setPen(QPen(theme.c("border"), 1))
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.drawRect(rect.adjusted(0.5, 0.5, -0.5, -0.5))
-        theme.draw_corner_marks(p, target.adjusted(6, 6, -6, -6), QColor(255, 255, 255, 170), 14, 1.5)
+        theme.draw_corner_marks(p, target.adjusted(6, 6, -6, -6), theme.c("accent"), 22, 3)
 
     def _readout(self, p, x, y, text, color=None, align_right=False, box=True):
         fm = p.fontMetrics()
@@ -243,15 +244,16 @@ class PreviewWidget(QWidget):
         title = self._texts[0]
         if self._state == self.STARTING:
             title += "." * (1 + int(self._phase * 8) % 3)
-        p.setPen(QColor(255, 255, 255, 230))
+        p.setPen(QColor(255, 255, 255, 235))
         p.drawText(QRectF(0, cy + 52, rect.width(), 30), Qt.AlignmentFlag.AlignCenter, title)
+        theme.draw_hazard(p, QRectF(cx - 90, cy + 112, 180, 6), theme.c("accent"), 8)
         p.setPen(QColor(255, 255, 255, 110))
         p.setFont(theme.mono(8.5, False, 0.4, upper=False))
         p.drawText(QRectF(0, cy + 84, rect.width(), 22), Qt.AlignmentFlag.AlignCenter, self._texts[1])
         # Signal-loss marker in the corner.
         on = int(self._phase * 4) % 2 == 0
         p.setFont(theme.mono(8.5, True, 1.0))
-        r = self._readout(p, 30, 30, "   NO SIGNAL", QColor(255, 255, 255, 200))
+        r = self._readout(p, 30, 30, "   NO SIGNAL", theme.mix(theme.c("accent"), QColor("white"), 0.35))
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(theme.c("accent") if on else theme.c("accent", 0.3))
         p.drawRect(QRectF(r.left() + 7, r.center().y() - 3.5, 7, 7))

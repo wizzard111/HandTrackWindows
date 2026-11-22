@@ -18,6 +18,18 @@ from handtrack.ui.widgets import (
 )
 
 
+class HazardRule(QWidget):
+    """Short warning-tape bar under a page title."""
+
+    def __init__(self, width=120):
+        super().__init__()
+        self.setFixedSize(width, 6)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        theme.draw_hazard(p, QRectF(self.rect()), theme.c("accent"), 8, theme.c("stage"))
+
+
 def number_cards(page, code):
     """Give the page's panels running codes like 02.01, 02.02 …"""
     for i, card in enumerate(page.findChildren(Card), 1):
@@ -40,8 +52,9 @@ def page_header(title, subtitle=None, code=None):
     box = QVBoxLayout()
     box.setSpacing(2)
     if code:
-        box.addWidget(tag_label(f"HANDTRACK // {code}", "accent", 8))
-    box.addWidget(heading(title, 18, 2))
+        box.addWidget(tag_label(f"HANDTRACK // SECTION {code}", "accent", 8))
+    box.addWidget(heading(title, 24, 3))
+    box.addWidget(HazardRule())
     if subtitle:
         box.addWidget(label(subtitle, "subtitle", wrap=True))
     return box

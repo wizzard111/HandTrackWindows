@@ -26,7 +26,7 @@ def render():
     pad = 40
     cv2.rectangle(img, (pad, pad), (S - pad, S - pad), (12, 10, 10, 255), -1)
     cv2.rectangle(img, (pad + 18, pad + 18), (S - pad - 18, S - pad - 18), (70, 64, 62, 255), 8)
-    cv2.rectangle(img, (S - pad - 150, pad + 18), (S - pad - 18, pad + 150), (63, 35, 208, 255), -1)
+    cv2.rectangle(img, (S - pad - 150, pad + 18), (S - pad - 18, pad + 150), (34, 13, 154, 255), -1)
 
     gray = cv2.imdecode(np.fromfile(os.path.join(ASSETS, "hand_reference.png"), np.uint8),
                         cv2.IMREAD_GRAYSCALE)
