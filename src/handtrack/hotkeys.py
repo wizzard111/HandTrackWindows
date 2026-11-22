@@ -66,8 +66,9 @@ def unavailable_reason():
         return None
     if sys.platform == "darwin":
         return "Global hotkeys are not available on macOS yet."
-    if os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland" or (
-            os.environ.get("WAYLAND_DISPLAY") and not os.environ.get("DISPLAY")):
+    # Under Wayland, X11 key grabs go to XWayland, which does not deliver
+    # them (checked: an exact key + modifier grab never fires there).
+    if os.environ.get("XDG_SESSION_TYPE", "").lower() == "wayland" or os.environ.get("WAYLAND_DISPLAY"):
         return "Wayland does not let apps use global hotkeys; they work in an X11 session."
     try:
         import Xlib  # noqa: F401
@@ -188,6 +189,10 @@ class _X11Backend:
                 "backspace": "BackSpace", "delete": "Delete", "insert": "Insert", "home": "Home",
                 "end": "End", "pageup": "Prior", "pagedown": "Next", "left": "Left", "up": "Up",
                 "right": "Right", "down": "Down", "printscreen": "Print", "pause": "Pause"}
+    # X keycodes (evdev + 8) of the letter keys on a QWERTY layout.
+    _QWERTY = dict(zip("qwertyuiop", range(24, 34)))
+    _QWERTY.update(zip("asdfghjkl", range(38, 47)))
+    _QWERTY.update(zip("zxcvbnm", range(52, 59)))
 
     def __init__(self, owner):
         self._owner = owner
@@ -197,15 +202,36 @@ class _X11Backend:
 
     def start(self, mods, key):
         from Xlib import X, XK, display, error
+        # python-xlib insists on reading ~/.Xauthority, but many X servers need
+        # no cookie (XWayland, WSLg, some display managers never write one).
+        # Point it at an empty file for this one connection in that case.
+        xauth = os.environ.get("XAUTHORITY") or os.path.expanduser("~/.Xauthority")
+        patched = not os.path.isfile(xauth)
+        old = os.environ.get("XAUTHORITY")
+        if patched:
+            os.environ["XAUTHORITY"] = os.devnull
         try:
             d = display.Display()
         except Exception as exc:
             return f"cannot open the X11 display: {exc}"
+        finally:
+            if patched:
+                if old is None:
+                    os.environ.pop("XAUTHORITY", None)
+                else:
+                    os.environ["XAUTHORITY"] = old
         name = self._KEYSYMS.get(key) or (key.upper() if key.startswith("f") and len(key) > 1 else key)
-        keysym = XK.string_to_keysym(name)
-        if not keysym and len(key) == 1:
-            keysym = ord(key)
-        keycode = d.keysym_to_keycode(keysym)
+        # A letter may be listed under its lower- or upper-case keysym.
+        keycode = 0
+        for candidate in (name, name.upper(), name.lower()):
+            keysym = XK.string_to_keysym(candidate) or (ord(candidate) if len(candidate) == 1 else 0)
+            keycode = d.keysym_to_keycode(keysym) if keysym else 0
+            if keycode:
+                break
+        if not keycode and key in self._QWERTY:
+            # The active layout has no Latin letters (e.g. Russian): use the
+            # physical key, like Windows does. Standard evdev keycodes.
+            keycode = self._QWERTY[key]
         if not keycode:
             d.close()
             return f"unknown key: {key}"

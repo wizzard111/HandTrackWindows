@@ -57,3 +57,13 @@ def test_key_recorder_finishes_once_and_goes_inert():
     QTest.keyRelease(field, Qt.Key.Key_A)
     assert got == ["ctrl+shift+k"]
     assert field.text() == "a"
+
+
+def test_wayland_and_macos_report_unavailable(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    monkeypatch.setenv("DISPLAY", ":0")                 # XWayland present: still unavailable
+    assert "Wayland" in hotkeys.unavailable_reason()
+    monkeypatch.setattr(sys, "platform", "darwin")
+    assert "macOS" in hotkeys.unavailable_reason()
+    assert hotkeys.GlobalHotkey().set_binding("ctrl+alt+h")   # an explanation, not a crash
