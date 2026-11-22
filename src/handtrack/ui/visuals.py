@@ -107,8 +107,7 @@ class PreviewWidget(QWidget):
         self._image = None
         self._array = None
         self._fps = 0.0
-        self._texts = ("", "", "", "LIVE", "COVERING", "")
-        self._covering = False
+        self._texts = ("", "", "", "LIVE")
         self._phase = 0.0
         self._live_since = 0.0
         self._clock = QElapsedTimer()
@@ -117,12 +116,8 @@ class PreviewWidget(QWidget):
         self._timer.timeout.connect(self._tick)
         self._timer.start(125)
 
-    def set_texts(self, standby_title, standby_hint, hidden, live, covering, covering_sub):
-        self._texts = (standby_title, standby_hint, hidden, live, covering, covering_sub)
-        self.update()
-
-    def set_covering(self, on):
-        self._covering = on
+    def set_texts(self, standby_title, standby_hint, hidden, live):
+        self._texts = (standby_title, standby_hint, hidden, live)
         self.update()
 
     def set_state(self, state):
@@ -154,8 +149,6 @@ class PreviewWidget(QWidget):
         self._phase = (self._phase + 0.0625) % 1.0
         if self._state != self.LIVE:
             self.update()
-        elif self._covering:
-            self.update(0, self.height() - 80, 320, 80)
         # Live frames repaint the widget anyway; the read-out rides along.
 
     def resizeEvent(self, event):
@@ -219,9 +212,6 @@ class PreviewWidget(QWidget):
             res = f"{self._array.shape[1]}x{self._array.shape[0]}" if self._array is not None else ""
             fps = f"{self._fps:4.1f} FPS" if self._fps else "-- FPS"
             self._readout(p, right, top, f"{res}  {fps}", align_right=True)
-        if self._covering:
-            paint_covering(p, QRectF(left, target.bottom() - 62, 260, 48), self._phase,
-                           self._texts[4], self._texts[5])
 
     def _paint_standby(self, p, rect):
         cx, cy = rect.center().x(), rect.center().y() - 16

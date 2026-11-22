@@ -79,6 +79,13 @@ def main(argv=None):
         app.setWindowIcon(QIcon(paths.ICON_PATH))
 
     settings = Settings.load()
+    from handtrack import logwindow
+    logwindow.capture_native_output()   # MediaPipe/OpenCV messages into the log
+    if settings.log_window:
+        logwindow.open_log_window(logger, paths.LOG_FILE)
+    import platform
+    logger.info("HandTrack %s starting (Python %s, %s)", __version__, platform.python_version(),
+                platform.platform())
     tr = Translator()
     theme.set_dark(settings.dark_mode)
     theme.load_fonts()
@@ -97,6 +104,8 @@ def main(argv=None):
 
     def load():
         try:
+            import time
+            t0 = time.monotonic()
             from handtrack.vision.models import ensure_models
             ensure_models(lambda name, pct: loader.progress.emit(
                 tr("downloading_model", name=name, pct=pct), pct))
@@ -104,6 +113,7 @@ def main(argv=None):
             from handtrack.engine import Engine  # imports mediapipe (slow)
             engine = Engine(settings)
             engine.create_landmarkers()
+            logger.info("Recognition models ready in %.1f s", time.monotonic() - t0)
             # The engine was created on this short-lived thread; hand it to the
             # GUI thread, or queued calls into it (preview_consumed) would be
             # posted to a dead thread and the preview would freeze on frame 1.

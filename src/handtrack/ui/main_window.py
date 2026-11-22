@@ -254,6 +254,7 @@ class MainWindow(QMainWindow):
             for row in rows:
                 self._bind(name, row.toggle)
         self._bind("custom_gestures_enabled", g.enabled_toggle)
+        self._bind("log_window", pref.log_row.toggle)
 
         fx.afk_slider.valueChanged.connect(lambda v: self._set("afk_timeout", v))
         fx.scale_slider.valueChanged.connect(lambda v: self._set("sticker_scale", v))
@@ -304,6 +305,7 @@ class MainWindow(QMainWindow):
         if getattr(self.settings, name) == value:
             return
         setattr(self.settings, name, value)
+        logger.info("Setting %s = %s", name, value)
         for toggle in self._toggles.get(name, ()):
             if toggle.isChecked() != value:
                 toggle.set_silent(value)
@@ -320,7 +322,6 @@ class MainWindow(QMainWindow):
 
     def _refresh_covering(self):
         on = self.settings.hide_face
-        self.camera.preview.set_covering(on and self._camera_state == "live")
         self.covering_badge.set_active(on)
 
     def _clear_drawing(self):
@@ -549,6 +550,7 @@ class MainWindow(QMainWindow):
     def _install_driver(self):
         ok, err = vcam.install_driver()
         self._driver_ok = vcam.driver_installed()
+        logger.info("Driver install: ok=%s installed=%s %s", ok, self._driver_ok, err or "")
         if err == "OBS":  # macOS: the OBS download page was opened
             self.toast.show_message(self.tr("vcam_obs_opened"), "accent", "info", 5000)
         elif ok and self._driver_ok:
@@ -718,6 +720,7 @@ class MainWindow(QMainWindow):
 
     def _on_gesture(self, gdef):
         action = gdef["action_type"]
+        logger.info("Gesture '%s' -> %s %s", gdef.get("name", "?"), action, gdef.get("action_param", ""))
         if action == "toggle_hide_face":
             self._set("hide_face", not self.settings.hide_face)
         elif action == "toggle_preview":

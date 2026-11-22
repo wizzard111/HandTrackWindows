@@ -81,6 +81,7 @@ class Settings:
     afk_timeout: float = 8.0
     custom_gestures_enabled: bool = True
     camera_index: int = 0
+    log_window: bool = True         # console with the live log at startup
 
     # Files written by v6 used a "_var" suffix on every key.
     @classmethod

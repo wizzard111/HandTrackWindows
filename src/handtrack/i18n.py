@@ -62,7 +62,7 @@ STRINGS = {
     "visualize_cb": "Tracking visualization",
     "visualize_desc": "Hand skeleton and eye landmarks",
     "gaze_cb": "Gaze tracking",
-    "counter_cb": "Finger counter in corner",
+    "counter_cb": "Finger counter in the preview",
     "preview_cb": "Show preview",
     "fastmode_cb": "Fast mode",
     "fastmode_desc": "Detection runs at half resolution — much lower CPU load",
@@ -210,6 +210,8 @@ STRINGS = {
     "settings_data_dir": "Data folder",
     "settings_open_data": "Open",
     "settings_about": "About",
+    "log_window_cb": "Log window at startup",
+    "log_window_desc": "A separate window with the live log. Takes effect the next time HandTrack starts.",
     "settings_about_text": "HandTrack {version} · MIT License",
 }
 

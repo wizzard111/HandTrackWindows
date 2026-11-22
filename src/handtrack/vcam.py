@@ -441,6 +441,7 @@ class VirtualCameraSender:
             self.error = str(exc) or type(exc).__name__
 
     def _run_output(self, out):
+        logger.info("Virtual camera '%s' open, %dx%d", self.device, self.width, self.height)
         self._started.set()
         last_want = last_sent = 0.0
         last_frame = time.monotonic()

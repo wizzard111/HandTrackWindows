@@ -108,13 +108,16 @@ def model_path(filename):
     return candidates[1]
 
 
+LOG_FILE = os.path.join(LOGS_DIR, "handtrack.log")
+
+
 def setup_logging():
     ensure_dirs()
     migrate_legacy_data()
     logger = logging.getLogger("handtrack")
     logger.setLevel(logging.INFO)
     if not logger.handlers:
-        handler = RotatingFileHandler(os.path.join(LOGS_DIR, "handtrack.log"),
+        handler = RotatingFileHandler(LOG_FILE,
                                       maxBytes=1_000_000, backupCount=2, encoding="utf-8")
         handler.setFormatter(logging.Formatter(
             "%(asctime)s | %(levelname)s | %(threadName)s | %(message)s"))

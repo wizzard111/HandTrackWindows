@@ -89,8 +89,7 @@ class CameraPage(QWidget):
         left = QVBoxLayout()
         left.setSpacing(14)
         self.preview = PreviewWidget()
-        self.preview.set_texts(tr("standby_title"), tr("standby_hint"), tr("preview_hidden"), tr("live"),
-                               tr("covering"), tr("covering_sub"))
+        self.preview.set_texts(tr("standby_title"), tr("standby_hint"), tr("preview_hidden"), tr("live"))
         left.addWidget(self.preview, 1)
 
         bar = QHBoxLayout()
@@ -448,6 +447,8 @@ class SettingsPage(QWidget):
         look = Card(tr("sec_appearance"), "moon")
         self.theme_row = SettingRow(tr("theme_dark"), None, s.dark_mode)
         look.body.addWidget(self.theme_row)
+        self.log_row = SettingRow(tr("log_window_cb"), tr("log_window_desc"), s.log_window)
+        look.body.addWidget(self.log_row)
         col.addWidget(look)
 
         drv = Card(tr("sec_vcam"), "camera")

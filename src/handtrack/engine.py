@@ -322,8 +322,12 @@ class Engine(QObject):
         return cap, (req_w, req_h)
 
     def _run(self):
+        req_w, req_h = self.settings.resolution_tuple()
+        logger.info("Opening camera %d at %dx%d", self.settings.camera_index + 1, req_w, req_h)
         cap, requested = self._open_camera()
         if cap is None:
+            logger.warning("Camera %d could not be opened (missing, or used by another app)",
+                           self.settings.camera_index + 1)
             self.failed.emit("err_camera", {"n": self.settings.camera_index + 1})
             self.stopped.emit(threading.get_ident())
             return
@@ -346,6 +350,7 @@ class Engine(QObject):
             while not self._stop.is_set():
                 frame_id, raw = reader.wait_latest(state["frame_id"])
                 if reader.failed:
+                    logger.warning("Camera stopped delivering frames")
                     self.failed.emit("err_camera", {"n": self.settings.camera_index + 1})
                     break
                 if raw is None:
@@ -353,6 +358,7 @@ class Engine(QObject):
                 state["frame_id"] = frame_id
                 if not state["announced"]:
                     h, w = raw.shape[:2]
+                    logger.info("Camera running at %dx%d", w, h)
                     self.started.emit(w, h, *requested)
                     state["announced"] = True
                 if self._reload_stickers:
@@ -364,6 +370,7 @@ class Engine(QObject):
                     logger.exception("Unhandled error in video loop")
         finally:
             reader.stop()
+            logger.info("Camera stopped")
             # The virtual camera stays open: with no frames coming it switches
             # to the standby picture by itself (see VirtualCameraSender).
             self.drawing.clear()
@@ -418,8 +425,6 @@ class Engine(QObject):
             d.render(frame, now)
         elif self.drawing.strokes:
             self.drawing.clear()
-        if s.show_counter:
-            render.draw_corner_counter(frame, counter)
 
         self._process_face(frame, width, height, face_result, face_new, show_viz,
                            now, st, stats)
@@ -435,6 +440,11 @@ class Engine(QObject):
                                      interpolation=cv2.INTER_LINEAR)
             else:
                 preview = frame
+            if s.show_counter:
+                # Preview only: the counter never goes out to the call.
+                if preview is frame:
+                    preview = frame.copy()
+                render.draw_corner_counter(preview, counter)
             self._preview_busy = True
             self.frame_ready.emit(preview)
 
@@ -442,6 +452,9 @@ class Engine(QObject):
         if now - st["fps_t"] >= 1.0:
             st["fps"] = st["fps_n"] / (now - st["fps_t"])
             st["fps_n"], st["fps_t"] = 0, now
+            st["log_n"] = st.get("log_n", 0) + 1
+            if st["log_n"] % 10 == 0:
+                logger.info("Processing %.1f FPS", st["fps"])
         if now - st["stats_t"] >= STATS_INTERVAL:
             st["stats_t"] = now
             stats["fps"] = st["fps"]
@@ -685,6 +698,9 @@ class Engine(QObject):
             self.vcam_state.emit("error", {"err": error})
             return
         if sender.started and sender.announced is not sender.active:
+            if sender.announced is not None or sender.active:
+                logger.info("Virtual camera: %s", "an app is watching" if sender.active
+                            else "no app is watching")
             sender.announced = sender.active
             self.vcam_state.emit("on", {"dev": sender.device, "w": width, "h": height,
                                         "active": sender.active})
