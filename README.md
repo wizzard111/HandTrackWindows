@@ -1,127 +1,83 @@
 <div align="center">
 
-<img src="assets/icon.png" width="96" alt="HandTrack">
+<img src="src/handtrack/assets/icon.png" width="96" alt="HandTrack">
 
-# HandTrack
+# HANDTRACK — Windows
 
-**Жесты, взгляд и приватность для видеозвонков.**
-Виртуальная камера для Discord, Telegram, Zoom, Google Meet, Teams, Skype и OBS — без установки OBS.
+**Жесты, взгляд, скрытие лица и рисование в воздухе — прямо в ваших звонках.**
+Своя виртуальная камера для Discord, Telegram, Zoom, Google Meet, Teams, Skype и OBS. Без OBS.
 
-[Скачать установщик](../../releases/latest) · [English](#english)
+*In collaboration with [Claude](https://claude.ai).*
 
-<img src="docs/screenshots/camera.png" width="860" alt="Главный экран">
+[⬇ Скачать](../../releases/latest) · [Пошаговая установка](HOW-TO-INSTALL.txt) · [Linux](https://github.com/OWNER/HandTrackLinux) · [macOS](https://github.com/OWNER/HandTrackMac) · [English](#english)
+
+<img src="docs/screenshots/live.png" width="880" alt="HandTrack">
 
 </div>
 
-## Возможности
+## Установка за минуту
 
-- **Виртуальная камера «HandTrack Camera»** — появляется в списке камер любого приложения,
-  которое работает с веб-камерами. Драйвер ставится вместе с программой, OBS не нужен.
-  Разрешение подстраивается автоматически, картинка никогда не растягивается.
-- **Свои жесты** — соберите комбинацию из пяти пальцев и привяжите к ней действие:
-  горячие клавиши, медиа-кнопки, громкость, запуск программы, открытие ссылки, скриншот,
-  скрытие лица.
-- **Приватность** — чёрная маска поверх лица (если трекинг потерян, кадр закрывается целиком)
-  и авто-AFK, когда вы отходите от камеры.
-- **Фото на жестах** — покажите 1–5 пальцев, и к руке «прикрепится» ваша картинка.
-- **Рисование щипком** — сведите большой и указательный пальцы и рисуйте в воздухе.
-- **Трекинг взгляда** с калибровкой по 9 точкам.
-- **Калибровка жестов** 1–5 под вашу руку.
-- Тёмная и светлая темы, русский и английский интерфейс, плавные анимации.
+1. [Releases](../../releases/latest) → скачайте **HandTrack-windows.zip** и распакуйте.
+2. Дважды щёлкните **Install HandTrack.bat**. На синем окне SmartScreen: «Подробнее» → «Выполнить в любом случае»; на запрос Windows: «Да».
+3. HandTrack появится в меню «Пуск». В звонке выберите камеру **HandTrack Camera**.
 
-<table>
-<tr>
+Подробно, с картинками ошибок и решениями — в [HOW-TO-INSTALL.txt](HOW-TO-INSTALL.txt).
+Удаление — **Uninstall HandTrack.bat**, «Пуск → Uninstall HandTrack» или «Параметры → Приложения».
+
+> Можно скачать и просто код (Code → Download ZIP): тот же установщик сам поставит
+> изолированный Python 3.12 и все библиотеки в папку программы — ничего не нужно ставить вручную.
+
+## Что умеет
+
+- **HandTrack Camera** — своя виртуальная камера (драйвер ставится вместе с программой). Разрешение подстраивается само, картинка не растягивается. Пока камеру никто не смотрит, кадры почти не отправляются — CPU отдыхает.
+- **Скрыть лицо** — чёрная маска с красным щитом; при потере лица закрывается весь кадр. В программе в это время пульсирует значок **COVERING**.
+- **Рисование щипком** — неоновые линии с плавным исчезновением, сглаживанием дрожи, выбором цвета, толщины и времени жизни; очистка кнопкой или жестом.
+- **Мои жесты** — любая комбинация пальцев → горячие клавиши, медиа, громкость, программы, ссылки, скриншот, скрытие лица, очистка рисунка.
+- **Фото на жестах** — покажите 1–5 пальцев, и к руке «прилипнет» ваша картинка.
+- **Трекинг взгляда** с калибровкой по 9 точкам, **авто-AFK**, калибровка жестов под вашу руку.
+- Тёмная и светлая темы, русский и английский.
+
+<table><tr>
 <td><img src="docs/screenshots/gestures.png" alt="Мои жесты"></td>
-<td><img src="docs/screenshots/effects-light.png" alt="Эффекты"></td>
-</tr>
-</table>
+<td><img src="docs/screenshots/effects.png" alt="Эффекты"></td>
+</tr></table>
 
-## Установка
+## Устройство репозитория
 
-1. Скачайте `HandTrack-Setup-x.y.z.exe` со страницы [Releases](../../releases/latest).
-2. Запустите и оставьте галочку «Установить драйвер виртуальной камеры».
-3. Откройте HandTrack → **Старт** → включите **Транслировать в виртуальную камеру**.
-4. В Discord / Telegram / Zoom выберите камеру **HandTrack Camera**.
-
-> Если приложение для звонков было открыто во время установки, перезапустите его, чтобы
-> оно увидело новую камеру.
-
-### Совместимость
-
-Камера регистрируется как DirectShow-устройство (64- и 32-битное), поэтому работает в
-Discord, Telegram Desktop, Zoom, Skype, Microsoft Teams, Chrome / Edge / Firefox
-(Google Meet, веб-версии мессенджеров) и OBS. Не появится только в приложениях, которые
-используют исключительно Media Foundation — например, во встроенном приложении «Камера» Windows.
-
-## Запуск из исходников
-
-Нужен Python 3.10–3.12 (3.13+ тоже работает, если для него есть сборка mediapipe).
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-python -m handtrack
+```
+Install HandTrack.bat     установщик (единственное, что нужно запускать)
+Uninstall HandTrack.bat   деинсталлятор
+HOW-TO-INSTALL.txt        пошаговая инструкция
+src/handtrack/            программа: engine, vision, vcam, ui, …
+packaging/                сборка: windows/, общая спецификация PyInstaller, загрузка моделей и драйвера
+tests/                    тесты (python -m pytest)
+docs/                     скриншоты, сторонние лицензии
 ```
 
-Модели MediaPipe (~11 МБ) скачаются при первом запуске. Драйвер виртуальной камеры при
-запуске из исходников: выполните `python packaging/fetch_deps.py`, затем в программе
-**Настройки → Установить драйвер** (попросит права администратора). Другой вариант —
-`pip install pyvirtualcam` и OBS Virtual Camera.
+Linux- и macOS-версии лежат в своих репозиториях с тем же кодом и своими установщиками.
 
-### Сборка установщика
+### Разработка
 
 ```powershell
-pip install -r requirements-dev.txt
-winget install JRSoftware.InnoSetup
-powershell -ExecutionPolicy Bypass -File packaging\build.ps1
+python -m venv .venv; .venv\Scripts\activate
+pip install -r packaging\requirements-dev.txt
+$env:PYTHONPATH = "src"; python -m handtrack        # запуск
+python -m pytest                                    # тесты
+powershell -ExecutionPolicy Bypass -File packaging\windows\build.ps1   # релиз dist\HandTrack-windows.zip
 ```
 
-Результат — `dist\HandTrack-Setup-<версия>.exe`. Скрипт сам скачает модели и драйвер
-Unity Capture (закреплён на конкретном коммите и проверяется по SHA-256).
+GitHub Actions собирает и проверяет релиз на каждый push; тег `v*` публикует его в Releases.
 
-GitHub Actions собирает установщик на каждый push, а при пуше тега `v*` публикует релиз:
+## Производительность
 
-```bash
-git tag v7.0.0 && git push origin v7.0.0
-```
-
-### Тесты
-
-```bash
-pip install -r requirements-dev.txt
-python -m pytest
-```
-
-## Как это устроено
-
-```
-handtrack/
-├── app.py            запуск: сплэш → модели → главное окно
-├── engine.py         видеоконвейер в отдельном потоке
-├── vcam.py           вывод в виртуальную камеру (протокол Unity Capture)
-├── actions.py        действия жестов: клавиши, медиа, программы
-├── config.py         настройки, калибровки, жесты (атомарная запись JSON)
-├── i18n.py           строки RU / EN
-├── vision/           геометрия руки и глаз, отрисовка, загрузка моделей
-└── ui/               PySide6: тема, анимированные виджеты, страницы
-```
-
-Интерфейс никогда не ждёт камеру или нейросети. Захват идёт в своём потоке и хранит только
-последний кадр. Обработка и наложения работают в потоке движка, MediaPipe распознаёт
-асинхронно, а вывод в камеру выполняется в третьем потоке. Кадр от камеры до превью и до
-виртуальной камеры не конвертируется в RGB: Qt и драйвер принимают BGR. Стикеры
-накладываются целочисленным премультиплицированным блендингом. Пока окно превью не видно,
-кадры для него не готовятся; пока виртуальную камеру никто не смотрит, кадры в неё
-отправляются с частотой 2 FPS.
-
-Данные пользователя (настройки, калибровки, картинки для жестов, логи) хранятся в
-`%APPDATA%\HandTrack` у установленной версии и рядом с кодом при запуске из исходников.
+Обработка идёт в отдельном потоке, нейросети — асинхронно, интерфейс никогда не ждёт камеру.
+Кадр не конвертируется для превью и камеры (Qt и драйвер берут BGR напрямую), стикеры
+смешиваются целочисленно, неоновое свечение размывается в ¼ разрешения (рисунок на весь
+кадр: 3 мс вместо 47), превью не готовится, пока его не видно.
 
 ## Лицензия
 
-[MIT](LICENSE). Установщик включает сторонние компоненты со своими лицензиями, см.
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[MIT](LICENSE). Сторонние компоненты — [docs/THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md).
 
 ---
 
@@ -129,16 +85,11 @@ handtrack/
 
 ## English
 
-HandTrack is a desktop app for video calls. It recognises hand gestures, tracks gaze, hides
-your face on request and streams the processed picture to a virtual webcam called
-**HandTrack Camera**. The camera works in Discord, Telegram Desktop, Zoom, Teams, Skype,
-browsers and OBS. The installer ships and registers its own driver (Unity Capture), so
-OBS is not required.
+HandTrack recognises hand gestures, tracks gaze, hides your face and lets you draw neon lines in
+the air, then streams the result to its own **HandTrack Camera** for Discord, Telegram, Zoom,
+Meet, Teams, Skype and OBS — no OBS needed.
 
-**Install:** download `HandTrack-Setup-x.y.z.exe` from [Releases](../../releases/latest),
-keep "Install the virtual camera driver" checked, then press **Start** and enable
-**Stream to virtual camera**. Pick *HandTrack Camera* in your call app.
-
-**From source:** `pip install -r requirements.txt && python -m handtrack`.
-
-**Build the installer:** `powershell -File packaging\build.ps1` (needs Inno Setup 6).
+**Install:** download **HandTrack-windows.zip** from [Releases](../../releases/latest), unzip, double-click
+**Install HandTrack.bat** (SmartScreen: "More info" → "Run anyway"; Windows prompt: "Yes").
+Pick **HandTrack Camera** in your call app. Remove it with **Uninstall HandTrack.bat**.
+Step by step: [HOW-TO-INSTALL.txt](HOW-TO-INSTALL.txt).

@@ -10,7 +10,7 @@ import sys
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.join(ROOT, "src"))
 
 from handtrack.vision.models import MODELS  # noqa: E402
 
@@ -40,11 +40,11 @@ def sha256(path):
 
 
 def main():
-    build = os.path.join(ROOT, "build", "deps")
-    models_dir = os.path.join(build, "models")
-    driver_dir = os.path.join(build, "driver")
+    """fetch_deps.py [DEST]   DEST defaults to build/deps; gets models/ and, on Windows, driver/."""
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    dest = os.path.abspath(args[0]) if args else os.path.join(ROOT, "build", "deps")
+    models_dir = os.path.join(dest, "models")
     os.makedirs(models_dir, exist_ok=True)
-    os.makedirs(driver_dir, exist_ok=True)
 
     print("MediaPipe models:")
     for _name, filename, url in MODELS:
@@ -52,16 +52,18 @@ def main():
         if not os.path.isfile(target):
             download(url, target)
 
-    print("Unity Capture driver:")
-    for filename, digest in DRIVER_FILES.items():
-        target = os.path.join(driver_dir, filename)
-        if not os.path.isfile(target) or sha256(target) != digest:
-            download(UNITY_CAPTURE_BASE + "Install/" + filename, target)
-        actual = sha256(target)
-        if actual != digest:
-            os.remove(target)
-            raise SystemExit(f"SHA-256 mismatch for {filename}: {actual}")
-    download(UNITY_CAPTURE_BASE + "README.md", os.path.join(driver_dir, "UnityCapture-README.md"))
+    if sys.platform == "win32" or "--driver" in sys.argv:
+        driver_dir = os.path.join(dest, "driver")
+        os.makedirs(driver_dir, exist_ok=True)
+        print("Unity Capture driver:")
+        for filename, digest in DRIVER_FILES.items():
+            target = os.path.join(driver_dir, filename)
+            if not os.path.isfile(target) or sha256(target) != digest:
+                download(UNITY_CAPTURE_BASE + "Install/" + filename, target)
+            actual = sha256(target)
+            if actual != digest:
+                os.remove(target)
+                raise SystemExit(f"SHA-256 mismatch for {filename}: {actual}")
     print("done")
 
 

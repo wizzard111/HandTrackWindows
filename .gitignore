@@ -5,20 +5,18 @@ __pycache__/
 venv/
 .pytest_cache/
 
-# Build output
+# Build output (also the macOS installer's local Python + build)
 /build/
 /dist/
-*.spec.bak
+install.log
 
-# Downloaded at runtime / build time
+# User data of v6/v7 source checkouts (now migrated to the per-user folder)
 /models/
-
-# Per-user data (source checkouts keep it next to the code)
 /logs/
 /screenshots/
-/images/gesture_*
-app_settings.json
-custom_gestures.json
-gaze_calibration.json
-hand_calibration.json
+/images/
+/app_settings.json
+/custom_gestures.json
+/gaze_calibration.json
+/hand_calibration.json
 *.tmp

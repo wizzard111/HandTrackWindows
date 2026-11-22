@@ -11,39 +11,36 @@ permissions:
   contents: write
 
 jobs:
-  test:
+  build:
     runs-on: windows-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
-      - run: python -m pip install -r requirements-dev.txt
+          cache-dependency-path: packaging/requirements*.txt
+      - run: python -m pip install -r packaging/requirements-dev.txt
       - run: python -m pytest -q
-
-  installer:
-    needs: test
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: python -m pip install -r requirements-dev.txt
-      - name: Install Inno Setup
-        run: choco install innosetup --no-progress -y
-      - name: Build installer
+      - name: Build release archive
         shell: pwsh
-        run: ./packaging/build.ps1 -Python python
+        run: ./packaging/windows/build.ps1 -Python python
+      - name: Installer works from the release archive
+        shell: pwsh
+        run: |
+          Expand-Archive dist/HandTrack-windows.zip $env:RUNNER_TEMP/rel
+          & "$env:RUNNER_TEMP/rel/HandTrack/app/install.ps1" -Yes -NoLaunch -NoDriver -InstallDir "$env:RUNNER_TEMP/inst"
+          if ($LASTEXITCODE -ne 0) { throw "install failed" }
+          & "$env:RUNNER_TEMP/inst/uninstall.ps1" -All -InstallDir "$env:RUNNER_TEMP/inst"
       - uses: actions/upload-artifact@v4
         with:
-          name: HandTrack-Setup
-          path: dist/HandTrack-Setup-*.exe
+          name: HandTrack-windows
+          path: dist/HandTrack-windows.zip
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/HandTrack-Setup-*.exe
+          files: dist/HandTrack-windows.zip
           generate_release_notes: true

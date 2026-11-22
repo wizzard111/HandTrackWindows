@@ -90,12 +90,47 @@ def test_finger_states_open_hand():
     assert geo.get_finger_states(lm) == (True,) * 5
 
 
-def test_drawing_fades():
+def test_drawing_fades_from_the_tail():
     d = render.Drawing()
-    d.add("Right", (0.1, 0.1), 100, 100, now=0.0)
-    d.add("Right", (0.5, 0.5), 100, 100, now=1.0)
-    frame = np.zeros((100, 100, 3), np.uint8)
-    d.render(frame, now=2.0)
+    d.lifetime = 10.0
+    d.add("Right", (0.1, 0.1), 200, 200, now=0.0)
+    d.add("Right", (0.15, 0.15), 200, 200, now=1.0)
+    d.add("Right", (0.2, 0.2), 200, 200, now=2.0)
+    frame = np.zeros((200, 200, 3), np.uint8)
+    d.render(frame, now=2.5)
     assert frame.any()
+    d.render(np.zeros_like(frame), now=10.5)       # first point expired, rest still there
+    assert d.strokes and len(d.strokes[0][3]) == 2
     d.render(np.zeros_like(frame), now=100.0)
     assert not d.strokes
+
+
+def test_drawing_jump_starts_new_stroke():
+    d = render.Drawing()
+    d.add("Right", (0.1, 0.1), 400, 400, now=0.0)
+    d.add("Right", (0.9, 0.9), 400, 400, now=0.03)
+    assert len(d.strokes) == 2
+
+
+def test_drawing_forever_and_clear():
+    d = render.Drawing()
+    d.lifetime = 0
+    d.add("Right", (0.5, 0.5), 100, 100, now=0.0)
+    d.render(np.zeros((100, 100, 3), np.uint8), now=1e6)
+    assert d.strokes
+    d.clear()
+    assert not d.strokes
+
+
+def test_pinch_hysteresis():
+    def hand(gap):
+        pts = [SimpleNamespace(x=0.5, y=0.5, z=0.0) for _ in range(21)]
+        pts[0] = SimpleNamespace(x=0.5, y=0.9, z=0.0)
+        pts[9] = SimpleNamespace(x=0.5, y=0.6, z=0.0)        # palm length 0.3
+        pts[4] = SimpleNamespace(x=0.5, y=0.4, z=0.0)
+        pts[8] = SimpleNamespace(x=0.5 + gap, y=0.4, z=0.0)
+        return pts
+    gap = 0.3 * 0.38                                         # between ON (0.30) and OFF (0.45)
+    assert geo.is_pinching(hand(gap), was_pinching=False)[0] is False
+    assert geo.is_pinching(hand(gap), was_pinching=True)[0] is True
+    assert geo.is_pinching(hand(0.3 * 0.2))[0] is True
