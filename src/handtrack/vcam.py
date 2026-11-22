@@ -116,6 +116,10 @@ def list_dshow_cameras():
 class UnityCaptureOutput:
     """Writes frames into the Unity Capture filter's shared memory."""
 
+    # The filter keeps showing the last frame (the timeout is effectively
+    # infinite), so an unchanged standby picture needs sending only once.
+    KEEPS_LAST_FRAME = True
+
     def __init__(self, width, height, cap_num=0):
         from ctypes import wintypes
         if width * height * 4 > _UC_MAX_IMAGE:
@@ -446,6 +450,8 @@ class VirtualCameraSender:
         last_want = last_sent = 0.0
         last_frame = time.monotonic()
         standby = None
+        standby_sent = False
+        keeps_last = getattr(out, "KEEPS_LAST_FRAME", False)
         try:
             while not self._stop_event.is_set():
                 try:
@@ -457,6 +463,8 @@ class VirtualCameraSender:
                     if standby is None:
                         standby = _standby_frame(self.width, self.height)
                     frame = standby
+                    if standby_sent and keeps_last:
+                        continue
                 now = time.monotonic()
                 if out.consumer_wants_frame():
                     last_want = now
@@ -464,6 +472,7 @@ class VirtualCameraSender:
                 if self.active or now - last_sent >= self.IDLE_INTERVAL:
                     if out.send(frame):
                         last_sent = now
+                        standby_sent = frame is standby
             try:  # leave a neutral picture instead of a frozen last frame
                 out.send(_standby_frame(self.width, self.height))
             except Exception:

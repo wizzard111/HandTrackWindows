@@ -3,8 +3,8 @@
 The window is its own process that follows the log file and quits by itself
 once HandTrack exits, so closing it never affects the program:
 
-* Windows: a classic console (conhost.exe) running a small PowerShell loop;
-  warnings are yellow, errors red.
+* Windows: a second, tiny HandTrack process with its own console
+  (logviewer.py; ~10 MB, idle between lines); warnings are yellow, errors red.
 * Linux / macOS: a terminal window running tail -f.
 
 Native libraries (MediaPipe, OpenCV) print to the process's stdout/stderr,
@@ -87,61 +87,22 @@ def show_log_window(log_path):
     return _terminal_tail(log_path)
 
 
-# Follows the log like tail -f, reopens it after rotation, quits with HandTrack.
-_PS_VIEWER = r"""
-$ErrorActionPreference = 'SilentlyContinue'
-$Host.UI.RawUI.WindowTitle = '__TITLE__'
-[Console]::OutputEncoding = [Text.Encoding]::UTF8
-$log = '__LOG__'; $appPid = __PID__; $start = __OFFSET__
-try { $Host.UI.RawUI.BufferSize = New-Object Management.Automation.Host.Size(160, 3000)
-      $Host.UI.RawUI.WindowSize = New-Object Management.Automation.Host.Size(160, 36) } catch { }
-# "2026-01-01 12:00:00,123 | LEVEL | Thread | message" -> "12:00:00  LEVEL  message"
-function Show($line) {
-    if (-not $line) { return }
-    $c = 'Gray'
-    if ($line -match '^\S+ (\d\d:\d\d:\d\d),\d+ \| (\w+) \| ([^|]+) \| (.*)$') {
-        $level = $Matches[2]; $thread = $Matches[3].Trim(); $msg = $Matches[4]
-        if ($level -match 'WARN') { $c = 'Yellow' }
-        elseif ($level -match 'ERROR|CRITICAL') { $c = 'Red' }
-        elseif ($thread -eq 'NativeOutput') { $c = 'DarkGray' }
-        else { $c = 'White' }
-        $line = '{0}  {1,-7}  {2}' -f $Matches[1], $level, $msg
-    }
-    Write-Host $line -ForegroundColor $c
-}
-function Open-Log { $fs = [IO.File]::Open($log, 'OpenOrCreate', 'Read', 'ReadWrite,Delete'); New-Object IO.StreamReader($fs, [Text.Encoding]::UTF8) }
-Write-Host "HandTrack log  ($log)" -ForegroundColor DarkGray
-Write-Host "This window closes by itself when HandTrack exits." -ForegroundColor DarkGray
-Write-Host ""
-$r = Open-Log
-if ($start -le $r.BaseStream.Length) { $r.BaseStream.Position = $start; $r.DiscardBufferedData() }   # this run only
-while (Get-Process -Id $appPid) {
-    $line = $r.ReadLine()
-    if ($null -ne $line) { Show $line; continue }
-    Start-Sleep -Milliseconds 200
-    $len = (Get-Item -LiteralPath $log).Length
-    if ($len -lt $r.BaseStream.Position) { $r.Close(); $r = Open-Log }   # rotated
-}
-"""
-
-
 def _windows_window(log_path):
-    script = (_PS_VIEWER.replace("__TITLE__", TITLE)
-              .replace("__LOG__", log_path.replace("'", "''"))
-              .replace("__PID__", str(os.getpid()))
-              .replace("__OFFSET__", str(_session_offset or 0)))
-    import base64
-    encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
-    windir = os.environ.get("SystemRoot", r"C:\Windows")
-    powershell = os.path.join(windir, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
-    conhost = os.path.join(windir, "System32", "conhost.exe")
-    # conhost.exe forces a classic console window even where Windows Terminal is
-    # the default; fall back to a plain new console otherwise.
-    args = [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded]
-    if os.path.isfile(conhost):
-        subprocess.Popen([conhost, *args], close_fds=True)
+    """A second, tiny HandTrack process with its own console (see logviewer.py)."""
+    from handtrack import paths
+    tail = ["--log-viewer", log_path, str(os.getpid()), str(_session_offset or 0)]
+    if paths.FROZEN:
+        cmd, cwd = [sys.executable, *tail], None
     else:
-        subprocess.Popen(args, creationflags=subprocess.CREATE_NEW_CONSOLE, close_fds=True)
+        exe = sys.executable
+        windowless = os.path.join(os.path.dirname(exe), "pythonw.exe")
+        if os.path.basename(exe).lower() == "python.exe" and os.path.isfile(windowless):
+            exe = windowless                      # the viewer opens its own console
+        package_parent = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cmd, cwd = [exe, "-m", "handtrack", *tail], package_parent
+    env = dict(os.environ, HANDTRACK_ALLOW_MULTIPLE="1")
+    subprocess.Popen(cmd, cwd=cwd, env=env, close_fds=True,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return True
 
 

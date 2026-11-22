@@ -5,6 +5,7 @@ Command line:
                   (used by the installers and CI; needs no camera or display)
     --request-camera  macOS: show the camera permission prompt, exit 0 if allowed
                   (the installer runs it; writes camera-permission.txt)
+    --log-viewer LOG PID OFFSET  Windows: the log window (started by HandTrack itself)
     --version     print the version
 """
 
@@ -87,6 +88,9 @@ def request_camera():
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["--log-viewer"]:          # the log window process: nothing else loads
+        from handtrack import logviewer
+        return logviewer.main(argv[1:])
     if "--version" in argv:
         print(__version__)
         return 0

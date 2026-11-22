@@ -1,15 +1,22 @@
 """Measure HandTrack's CPU and memory use in typical situations.
 
-    PYTHONPATH=src python packaging/benchmark.py --video CLIP [--seconds 20] [--out results.json]
+    PYTHONPATH=src python packaging/benchmark.py [--video synthetic|camera|FILE]
+                                                 [--seconds 20] [--repeat 3] [--out results.json]
 
-CLIP is any video file; it replaces the webcam (HANDTRACK_VIDEO_SOURCE) and
-loops at its frame rate, so every OS measures the same input. Use
---video camera to measure with the real webcam instead. Each scenario
-runs the real app (handtrack.app.main) in a fresh process with a throwaway
-data folder, waits for it to settle, then samples the process once a second:
+The input replaces the webcam (HANDTRACK_VIDEO_SOURCE) and loops at its frame
+rate, so every machine measures the same thing. The default, "synthetic", is a
+generated 1280x720 MJPG clip at 30 FPS (sensor-like noise and slowly moving
+shapes, no hands or faces, so detection keeps searching: the costly case),
+built identically on every OS. "camera" measures with the real webcam.
+
+Each scenario runs the real app (handtrack.app.main) in a fresh process with a
+throwaway data folder (HANDTRACK_DATA_DIR: your own settings are not touched),
+waits for it to settle, then samples the process once a second. With
+--repeat N every scenario runs N times and the median is reported.
 
     idle        window open, camera stopped
     tray        window hidden to the tray, camera stopped        (needs a tray)
+    idle_vcam   window open, camera stopped, streaming switched on (standby picture)
     live        camera running, default settings, window open
     live_tray   camera running, window hidden to the tray         (needs a tray)
     privacy     camera running with "Hide face"
@@ -26,6 +33,7 @@ import argparse
 import json
 import os
 import platform
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -33,7 +41,7 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-SCENARIOS = ("idle", "tray", "live", "live_tray", "privacy", "call")
+SCENARIOS = ("idle", "tray", "idle_vcam", "live", "live_tray", "privacy", "call")
 
 BASE_SETTINGS = {  # the app's defaults, made explicit; the log window stays closed
     "hide_face": False, "visualize": True, "gaze": True, "fast_mode": True,
@@ -41,45 +49,27 @@ BASE_SETTINGS = {  # the app's defaults, made explicit; the log window stays clo
     "preview_visible": True, "show_counter": True, "log_window": False,
     "animation": os.environ.get("HANDTRACK_BENCH_ANIMATION", "1") == "1",
 }
+NUMERIC = ("cpu_core", "cpu_machine", "cpu_max", "rss_mb", "rss_peak_mb", "private_mb", "uss_mb", "fps")
 
 
 # ------------------------------------------------------------------ parent ----
 def run_parent(args):
     use_camera = args.video == "camera"
+    if args.video == "synthetic":
+        args.video = synthetic_clip()
     if not use_camera and not os.path.isfile(args.video):
         raise SystemExit(f"video not found: {args.video}")
     wanted = [s for s in args.scenarios.split(",") if s]
-    results = {"machine": machine_info(), "seconds": args.seconds,
-               "video": "webcam" if use_camera else os.path.basename(args.video),
-               "scenarios": {}}
+    results = {"machine": machine_info(), "seconds": args.seconds, "repeat": args.repeat,
+               "video": "webcam" if use_camera else os.path.basename(args.video), "scenarios": {}}
+    print(f"{results['machine']['os']} | {results['machine']['cpu']} | {results['machine']['cores']} threads | "
+          f"Python {results['machine']['python']} | input: {results['video']}", flush=True)
     for name in wanted:
         if name == "call" and sys.platform != "win32":
             print(f"{name:10} skipped (Windows only)")
             continue
-        with tempfile.TemporaryDirectory(prefix="ht-bench-") as data, \
-                tempfile.NamedTemporaryFile("r", suffix=".json", delete=False) as out:
-            env = dict(os.environ, APPDATA=data, XDG_CONFIG_HOME=data, HOME=os.environ.get("HOME", data),
-                       HANDTRACK_ALLOW_MULTIPLE="1",
-                       PYTHONPATH=os.path.join(ROOT, "src"))
-            if not use_camera:
-                env["HANDTRACK_VIDEO_SOURCE"] = os.path.abspath(args.video)
-            if sys.platform.startswith("linux") and not os.environ.get("DISPLAY") \
-                    and not os.environ.get("WAYLAND_DISPLAY"):
-                env["QT_QPA_PLATFORM"] = "offscreen"
-            cmd = [sys.executable, os.path.abspath(__file__), "--child", name, "--seconds", str(args.seconds),
-                   "--result", out.name]
-            proc = subprocess.run(cmd, env=env, cwd=os.path.join(ROOT, "src"), timeout=args.seconds + 120)
-            try:
-                with open(out.name, encoding="utf-8") as f:
-                    res = json.load(f)
-            except (OSError, ValueError):
-                res = {"error": f"no result (exit code {proc.returncode})"}
-                crash = os.path.join(data, "HandTrack", "logs", "crash.log")
-                if os.path.isfile(crash):
-                    with open(crash, encoding="utf-8", errors="replace") as f:
-                        res["crash_log"] = f.read()[-6000:]
-                    print(res["crash_log"])
-        os.unlink(out.name)
+        runs = [run_scenario(args, name, use_camera) for _ in range(max(1, args.repeat))]
+        res = median_result(runs)
         results["scenarios"][name] = res
         print(format_row(name, res), flush=True)
     if args.out:
@@ -88,10 +78,100 @@ def run_parent(args):
     return 0
 
 
+def run_scenario(args, name, use_camera):
+    with tempfile.TemporaryDirectory(prefix="ht-bench-") as data, \
+            tempfile.NamedTemporaryFile("r", suffix=".json", delete=False) as out:
+        env = dict(os.environ, HANDTRACK_DATA_DIR=data, HANDTRACK_ALLOW_MULTIPLE="1",
+                   PYTHONPATH=os.path.join(ROOT, "src"))
+        if not use_camera:
+            env["HANDTRACK_VIDEO_SOURCE"] = os.path.abspath(args.video)
+        if sys.platform.startswith("linux") and not os.environ.get("DISPLAY") \
+                and not os.environ.get("WAYLAND_DISPLAY"):
+            env["QT_QPA_PLATFORM"] = "offscreen"
+        cmd = [sys.executable, os.path.abspath(__file__), "--child", name, "--seconds", str(args.seconds),
+               "--result", out.name]
+        proc = subprocess.run(cmd, env=env, cwd=os.path.join(ROOT, "src"), timeout=args.seconds + 120)
+        try:
+            with open(out.name, encoding="utf-8") as f:
+                res = json.load(f)
+        except (OSError, ValueError):
+            res = {"error": f"no result (exit code {proc.returncode})"}
+            crash = os.path.join(data, "logs", "crash.log")
+            if os.path.isfile(crash):
+                with open(crash, encoding="utf-8", errors="replace") as f:
+                    res["crash_log"] = f.read()[-6000:]
+                print(res["crash_log"])
+    os.unlink(out.name)
+    return res
+
+
+def median_result(runs):
+    """Per-value median over repeated runs of one scenario."""
+    ok = [r for r in runs if "error" not in r and not r.get("skipped")]
+    if not ok:
+        return runs[-1]
+    out = dict(ok[len(ok) // 2])
+    for key in NUMERIC:
+        values = [r[key] for r in ok if r.get(key) is not None]
+        if values:
+            out[key] = statistics.median(values)
+    out["runs"] = len(ok)
+    out["cpu_core_runs"] = [round(r["cpu_core"], 1) for r in ok]
+    return out
+
+
+def synthetic_clip():
+    """Deterministic 4 s, 1280x720, 30 FPS MJPG clip, cached in the temp folder."""
+    import cv2
+    import numpy as np
+    path = os.path.join(tempfile.gettempdir(), "handtrack-benchmark-synthetic-v1.avi")
+    if os.path.isfile(path) and os.path.getsize(path) > 100_000:
+        return path
+    w, h, fps, n = 1280, 720, 30, 120
+    rng = np.random.default_rng(7)
+    texture = cv2.GaussianBlur(rng.integers(0, 255, (h + 32, w + 32, 3), dtype=np.uint8), (0, 0), 3)
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    shade = (0.35 + 0.4 * (1 - yy / h))[..., None]               # darker towards the floor
+    writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"MJPG"), fps, (w, h))
+    writer.set(cv2.VIDEOWRITER_PROP_QUALITY, 85)
+    for i in range(n):
+        dx, dy = int(16 + 12 * np.sin(i / 19)), int(16 + 12 * np.cos(i / 23))
+        frame = texture[dy:dy + h, dx:dx + w].astype(np.float32) * shade
+        for k in range(3):                                       # slowly moving soft shapes
+            cx = w * (0.25 + 0.25 * k) + 60 * np.sin(i / 30 + k)
+            cy = h * 0.5 + 40 * np.cos(i / 25 + k)
+            blob = np.exp(-(((xx - cx) / 140) ** 2 + ((yy - cy) / 110) ** 2))[..., None]
+            frame += blob * np.array((40, 60 + 30 * k, 90), np.float32)
+        frame += rng.normal(0, 4, frame.shape).astype(np.float32)  # sensor noise
+        writer.write(np.clip(frame, 0, 255).astype(np.uint8))
+    writer.release()
+    return path
+
+
 def machine_info():
     import psutil
-    return {"os": platform.platform(), "python": platform.python_version(), "cpu": platform.processor()
-            or platform.machine(), "cores": psutil.cpu_count(), "ram_gb": round(psutil.virtual_memory().total / 2**30, 1)}
+    cpu = platform.processor() or platform.machine()
+    if sys.platform.startswith("linux"):
+        try:
+            with open("/proc/cpuinfo", encoding="utf-8") as f:
+                cpu = next(l.split(":", 1)[1].strip() for l in f if l.startswith("model name"))
+        except (OSError, StopIteration):
+            pass
+    elif sys.platform == "win32":
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") as k:
+                cpu = str(winreg.QueryValueEx(k, "ProcessorNameString")[0]).strip()
+        except OSError:
+            pass
+    elif sys.platform == "darwin":
+        try:
+            cpu = subprocess.run(["sysctl", "-n", "machdep.cpu.brand_string"], capture_output=True,
+                                 text=True).stdout.strip() or cpu
+        except OSError:
+            pass
+    return {"os": platform.platform(), "python": platform.python_version(), "cpu": cpu,
+            "cores": psutil.cpu_count(), "ram_gb": round(psutil.virtual_memory().total / 2**30, 1)}
 
 
 def format_row(name, r):
@@ -103,8 +183,9 @@ def format_row(name, r):
     if r.get("uss_mb"):
         priv += f"  USS {r['uss_mb']:5.0f} MB"
     fps = f"  {r['fps']:5.1f} FPS" if r.get("fps") else ""
+    runs = f"  runs {r['cpu_core_runs']}" if len(r.get("cpu_core_runs", [])) > 1 else ""
     row = (f"{name:10} CPU {r['cpu_core']:6.1f}% of a core ({r['cpu_machine']:4.1f}% of all)"
-           f"  RAM {r['rss_mb']:6.0f} MB (peak {r['rss_peak_mb']:4.0f}){priv}{fps}")
+           f"  RAM {r['rss_mb']:6.0f} MB (peak {r['rss_peak_mb']:4.0f}){priv}{fps}{runs}")
     if r.get("by_thread") and os.environ.get("HANDTRACK_BENCH_THREADS"):
         row += "\n" + " " * 11 + ", ".join(f"{k} {v}" for k, v in r["by_thread"].items())
     return row
@@ -119,13 +200,12 @@ def run_child(args):
     settings = dict(BASE_SETTINGS)
     if args.child in ("privacy", "call"):
         settings["hide_face"] = True
-    if args.child == "call":
+    if args.child in ("call", "idle_vcam"):
         settings["vcam"] = True
     with open(paths.SETTINGS_PATH, "w", encoding="utf-8") as f:
         json.dump(settings, f)
 
     from PySide6.QtCore import QTimer
-    from PySide6.QtWidgets import QApplication
 
     import handtrack.ui.main_window as mw
 
@@ -172,7 +252,7 @@ def run_child(args):
             QTimer.singleShot(1000, tick)
 
         def _done(self, samples):
-            try:   # unique set size: memory only this process uses (Linux/macOS/Windows)
+            try:   # unique set size: memory only this process uses
                 uss = proc.memory_full_info().uss / 2**20
             except (psutil.Error, AttributeError):
                 uss = None
@@ -196,7 +276,6 @@ def run_child(args):
     mw.MainWindow = Bench
     from handtrack.app import main
     main([])
-    QApplication.instance()
     with open(args.result, "w", encoding="utf-8") as f:
         json.dump(state["result"] or {"error": "no measurement"}, f)
     return 0
@@ -208,7 +287,7 @@ def thread_times(proc):
 
 def thread_breakdown(before, after, seconds):
     """% of a core per thread, grouped by Python thread name (native threads,
-    i.e. MediaPipe/XNNPACK/Qt workers, are summed as "native")."""
+    i.e. MediaPipe/XNNPACK/Qt/camera driver workers, are summed as "native")."""
     import threading
     names = {t.native_id: t.name for t in threading.enumerate()}
     out = {}
@@ -233,8 +312,9 @@ def run_consumer():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--video")
+    ap.add_argument("--video", default="synthetic")
     ap.add_argument("--seconds", type=int, default=20)
+    ap.add_argument("--repeat", type=int, default=1)
     ap.add_argument("--scenarios", default=",".join(SCENARIOS))
     ap.add_argument("--out")
     ap.add_argument("--child")
@@ -245,8 +325,6 @@ def main():
         return run_consumer()
     if args.child:
         return run_child(args)
-    if not args.video:
-        ap.error("--video is required")
     return run_parent(args)
 
 

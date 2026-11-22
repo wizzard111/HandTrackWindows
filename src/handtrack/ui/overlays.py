@@ -121,8 +121,15 @@ class Splash(QWidget):
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
         self._timer.start(16)
+        # Closed after start-up: freed, timer included (it used to keep ticking
+        # 60 times a second for the rest of the session).
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         screen = QApplication.primaryScreen().availableGeometry()
         self.move(screen.center().x() - self.width() // 2, screen.center().y() - self.height() // 2)
+
+    def hideEvent(self, event):
+        self._timer.stop()
+        super().hideEvent(event)
 
     def set_status(self, text, progress=None):
         self._status = text
