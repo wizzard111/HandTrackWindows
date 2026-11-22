@@ -98,6 +98,12 @@ def main(argv=None):
     # Before any worker thread starts: garbage is collected on this thread only.
     from handtrack.ui.gc_guard import GuiThreadGC
     app._gc_guard = GuiThreadGC(app)
+
+    from handtrack import single_instance
+    if single_instance.notify_running_instance():
+        logger.info("HandTrack is already running: showed its window instead")
+        return 0
+    instance_server = single_instance.InstanceServer(app)
     app.setApplicationName(APP_NAME)
     app.setDesktopFileName("handtrack")  # Wayland: match the .desktop entry for the icon
     app.setStyle("Fusion")
@@ -166,6 +172,7 @@ def main(argv=None):
         from handtrack.ui.main_window import MainWindow
         window = MainWindow(settings, engine)
         state["window"] = window
+        instance_server.activate.connect(window.bring_to_front)
         window.setWindowOpacity(0.0)
         window.show()
         fade = QPropertyAnimation(window, b"windowOpacity", window)

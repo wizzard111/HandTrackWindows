@@ -103,6 +103,7 @@ class CameraPage(QWidget):
         bar.addWidget(self.camera_combo)
         self.res_combo = QComboBox()
         self.res_combo.addItems([r.replace("x", " × ") for r in RESOLUTIONS])
+        self.res_combo.setToolTip(tr("res_tip"))
         self.res_combo.setCurrentIndex(RESOLUTIONS.index(s.resolution))
         bar.addWidget(self.res_combo)
         bar.addStretch(1)
@@ -452,6 +453,26 @@ class SettingsPage(QWidget):
         self.log_row = SettingRow(tr("log_window_cb"), tr("log_window_desc"), s.log_window)
         look.body.addWidget(self.log_row)
         col.addWidget(look)
+
+        keys = Card(tr("sec_hotkeys"), "sliders")
+        self.hotkey_row = SettingRow(tr("hotkey_cb"), tr("hotkey_desc"), s.hotkey_enabled)
+        keys.body.addWidget(self.hotkey_row)
+        line = QHBoxLayout()
+        self.hotkey_label = QLabel()
+        self.hotkey_label.setStyleSheet(
+            f"font-family: '{theme.mono_family()}'; font-size: 10pt; font-weight: 700; "
+            f"padding: 6px 10px; border: 1px solid {theme.hex_('border')}; "
+            f"background: {theme.hex_('surface2')};")
+        line.addWidget(self.hotkey_label)
+        line.addStretch(1)
+        self.hotkey_change_btn = Button(tr("hotkey_change"), "record", "secondary")
+        self.hotkey_default_btn = Button(tr("hotkey_default"), "refresh", "ghost")
+        line.addWidget(self.hotkey_change_btn)
+        line.addWidget(self.hotkey_default_btn)
+        keys.body.addLayout(line)
+        self.hotkey_status = label("", "faint", wrap=True)
+        keys.body.addWidget(self.hotkey_status)
+        col.addWidget(keys)
 
         drv = Card(tr("sec_vcam"), "camera")
         self.driver_pill = Pill("")

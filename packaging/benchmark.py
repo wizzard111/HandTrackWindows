@@ -58,6 +58,7 @@ def run_parent(args):
         with tempfile.TemporaryDirectory(prefix="ht-bench-") as data, \
                 tempfile.NamedTemporaryFile("r", suffix=".json", delete=False) as out:
             env = dict(os.environ, APPDATA=data, XDG_CONFIG_HOME=data, HOME=os.environ.get("HOME", data),
+                       HANDTRACK_ALLOW_MULTIPLE="1",
                        PYTHONPATH=os.path.join(ROOT, "src"))
             if not use_camera:
                 env["HANDTRACK_VIDEO_SOURCE"] = os.path.abspath(args.video)

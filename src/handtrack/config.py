@@ -83,6 +83,8 @@ class Settings:
     camera_index: int = 0
     log_window: bool = True         # console with the live log at startup
     sounds: bool = True             # sound when face hiding switches on
+    hotkey_enabled: bool = True     # global hotkey toggles face hiding
+    hotkey_hide_face: str = "ctrl+alt+h"
 
     # Files written by v6 used a "_var" suffix on every key.
     @classmethod

@@ -354,18 +354,29 @@ class Engine(QObject):
             backend = cv2.CAP_AVFOUNDATION
         else:
             backend = cv2.CAP_V4L2
-        cap = cv2.VideoCapture(s.camera_index, backend)
-        if not cap.isOpened():
-            cap.release()
-            return None, None
         req_w, req_h = s.resolution_tuple()
         # MJPG lets most USB webcams deliver 720p/1080p at 30 FPS; raw YUY2
-        # is often limited to 5–10 FPS at those sizes.
-        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, req_w)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, req_h)
-        cap.set(cv2.CAP_PROP_FPS, 30)
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        # is often limited to 5-10 FPS at those sizes.
+        props = [cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"),
+                 cv2.CAP_PROP_FRAME_WIDTH, req_w, cv2.CAP_PROP_FRAME_HEIGHT, req_h,
+                 cv2.CAP_PROP_FPS, 30, cv2.CAP_PROP_BUFFERSIZE, 1]
+        # Passed at open, the format is set once: with DirectShow every later
+        # set() rebuilds the capture graph (first frame after 0.6 s instead of
+        # 2.2 s). Drivers that reject open-time properties get them one by one.
+        cap = None
+        try:
+            cap = cv2.VideoCapture(s.camera_index, backend, props)
+        except cv2.error:
+            cap = None
+        if cap is None or not cap.isOpened():
+            if cap is not None:
+                cap.release()
+            cap = cv2.VideoCapture(s.camera_index, backend)
+            if not cap.isOpened():
+                cap.release()
+                return None, None
+            for prop, value in zip(props[::2], props[1::2]):
+                cap.set(prop, value)
         return cap, (req_w, req_h)
 
     def _run(self):

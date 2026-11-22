@@ -9,7 +9,7 @@ Its own virtual camera for Discord, Telegram, Zoom, Google Meet, Teams, Skype an
 
 *In collaboration with [Claude](https://claude.ai).*
 
-[⬇ Download](../../releases/latest) · [Step-by-step install](HOW-TO-INSTALL.txt) · [Linux](https://github.com/OWNER/HandTrackLinux) · [macOS](https://github.com/OWNER/HandTrackMac)
+[⬇ Download](../../releases/latest) · [Step-by-step install](HOW-TO-INSTALL.txt) · [Linux](https://github.com/wizzard111/HandTrackLinux) · [macOS](https://github.com/wizzard111/HandTrackMac)
 
 <img src="docs/screenshots/live.png" width="880" alt="HandTrack">
 
@@ -36,7 +36,8 @@ Running the installer again only adds what is missing or changed.
 - **My gestures**: any finger combination → hotkeys, media, volume, programs, links, a screenshot, face hiding, clearing the drawing.
 - **Photos on gestures**: show 1–5 fingers and your picture "sticks" to your hand.
 - **Gaze tracking** with 9-point calibration, **auto-AFK**, gesture calibration for your hand.
-- Runs in the **tray**: closing the window keeps the camera and the call stream going; quick controls in the tray menu.
+- **Hotkey** for Hide face that works in any program (default Ctrl + Alt + H, rebindable in Settings).
+- Runs in the **tray**: closing the window keeps the camera and the call stream going; quick controls in the tray menu. Starting it again just brings the running window back.
 - **Log window** with the live log at startup (can be turned off), for when something needs explaining.
 - Dark and light themes.
 
@@ -92,8 +93,11 @@ memory used by HandTrack alone.
 | Camera on + Hide face | 41 % | 221 MB | 148 MB | 29 % | 271 MB | 257 MB |
 | In a call: Hide face + virtual camera, read by a call app | 37 % | 234 MB | 158 MB | — | — | — |
 
-With the real webcam (Windows, Lenovo FHD webcam at 1280×720) the camera itself adds work: camera on
-54 %, Hide face 54 %, in a call 60 % of one core (4–5 % of the whole processor), 260–280 MB RAM.
+With the real webcam (Windows, Lenovo FHD webcam, 1280×720 at ~30 FPS) the numbers depend on what is
+in view: 55–85 % of one core (5–7 % of the whole processor), 250–280 MB RAM. Reading the camera
+itself costs about 13 % of a core at 1280×720 and 30 % at 1920×1080 (the MJPG decoding in Windows'
+DirectShow), so 1280×720, the default, is the economical choice; most call apps send 1280×720 anyway.
+The camera starts in about 0.6 s.
 Linux was measured under WSL2 (WSLg); "—" means the situation needs a tray or the Windows camera
 driver, which WSL lacks. macOS has not been measured.
 
@@ -104,6 +108,8 @@ How it stays light:
 - Detection slows down while nothing is in view (hands 15, faces 10 checks a second) and returns to
   full rate the moment a hand or face appears. Processing runs on its own thread, the neural
   networks asynchronously; the interface never waits for the camera.
+- The camera format is set once when it opens (DirectShow rebuilt its capture graph for every
+  setting: the first frame came after 2.2 s, now after 0.6 s).
 - Every frame is processed once: the AFK screen is rendered once and copied, the preview is
   converted to Qt's native format on the video thread and is not prepared while hidden, stickers
   are blended with integer maths, and the drawing goes straight into the frame.

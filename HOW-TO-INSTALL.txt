@@ -76,6 +76,10 @@ STEP 4. USE IT
       on the "Effects" tab.
     * "My gestures": map a finger combination to keys, media,
       volume or launching a program.
+    * Ctrl + Alt + H switches "Hide face" on and off from any program,
+      also while HandTrack is in the tray. Change it in Settings.
+    * Closing the window keeps HandTrack running in the tray (next to
+      the clock); quit it from the tray icon's menu.
 
 
 ---------------------------------------------------------------------

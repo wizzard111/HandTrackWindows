@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QVBoxLayout, QWidget,
 )
 
-from handtrack import __version__, actions, config, paths, sound, vcam
+from handtrack import __version__, actions, config, hotkeys, paths, sound, vcam
 from handtrack.config import ACTIONS_WITH_KEYS, ACTIONS_WITH_PARAM, RESOLUTIONS
 from handtrack.i18n import Translator
 from handtrack.ui import theme
@@ -68,7 +68,12 @@ def set_dark_title_bar(widget, dark):
 
 
 class KeyRecorder(QObject):
-    """Captures a key combination from the parameter field."""
+    """Captures one key combination from ``target``, then goes inert.
+
+    ``finished`` fires exactly once: with the combination, or "" when cancelled
+    (Esc) or after 8 s. The event filter and the timeout are removed at that
+    moment, so a recorder whose deletion is still pending cannot record again.
+    """
 
     finished = Signal(str)
 
@@ -76,17 +81,32 @@ class KeyRecorder(QObject):
         super().__init__(target)
         self.mode = mode
         self.pressed = []
+        self._target = target
+        self._done = False
         target.installEventFilter(self)
         target.setFocus()
-        QTimer.singleShot(8000, lambda: self.finished.emit(""))
+        self._timeout = QTimer(self)
+        self._timeout.setSingleShot(True)
+        self._timeout.timeout.connect(lambda: self._finish(""))
+        self._timeout.start(8000)
+
+    def _finish(self, value):
+        if self._done:
+            return
+        self._done = True
+        self._timeout.stop()
+        self._target.removeEventFilter(self)
+        self.finished.emit(value)
 
     def eventFilter(self, obj, event):
+        if self._done:
+            return False
         if event.type() == QEvent.Type.KeyPress and isinstance(event, QKeyEvent):
             if event.isAutoRepeat():
                 return True
             name = qt_key_name(event.key())
             if name == "esc" and not self.pressed:
-                self.finished.emit("")
+                self._finish("")
             elif name and name not in self.pressed:
                 self.pressed.append(name)
             return True
@@ -99,7 +119,7 @@ class KeyRecorder(QObject):
             else:
                 mods = [m for m in MODIFIERS if m in self.pressed]
                 value = "+".join(mods + [k for k in self.pressed if k not in MODIFIERS])
-            self.finished.emit(value)
+            self._finish(value)
             return True
         return False
 
@@ -153,6 +173,9 @@ class MainWindow(QMainWindow):
 
         self._quitting = False
         self.tray = None
+        self.hotkey = hotkeys.GlobalHotkey(self)
+        self.hotkey.triggered.connect(self._on_hotkey)
+        self._apply_hotkey()
         self._build()
         set_dark_title_bar(self, settings.dark_mode)
         app = QApplication.instance()
@@ -266,6 +289,11 @@ class MainWindow(QMainWindow):
         self._bind("custom_gestures_enabled", g.enabled_toggle)
         self._bind("log_window", pref.log_row.toggle)
         self._bind("sounds", pref.sounds_row.toggle)
+        self._bind("hotkey_enabled", pref.hotkey_row.toggle)
+        pref.hotkey_change_btn.clicked.connect(self._record_hotkey)
+        pref.hotkey_default_btn.clicked.connect(
+            lambda: self._set_hotkey(hotkeys.DEFAULT_HIDE_FACE))
+        self._refresh_hotkey()
 
         fx.afk_slider.valueChanged.connect(lambda v: self._set("afk_timeout", v))
         fx.scale_slider.valueChanged.connect(lambda v: self._set("sticker_scale", v))
@@ -331,6 +359,9 @@ class MainWindow(QMainWindow):
         elif name == "vcam":
             self.engine.sync_vcam()
             self._refresh_vcam()
+        elif name == "hotkey_enabled":
+            self._apply_hotkey()
+            self._refresh_hotkey()
         elif name == "gaze" and not value:
             self.camera.gaze_map.set_point(None)
         self._save_timer.start()
@@ -864,6 +895,12 @@ class MainWindow(QMainWindow):
     def toggle_running(self):
         self._toggle_running()
 
+    def bring_to_front(self):
+        """Show the window (also from the tray) and give it the focus."""
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
+
     def set_setting(self, name, value):
         self._set(name, value)
 
@@ -887,11 +924,65 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
         QApplication.instance().quit()
 
+    # ================================================================ hotkey ====
+    def _apply_hotkey(self):
+        s = self.settings
+        self.hotkey.set_binding(s.hotkey_hide_face if s.hotkey_enabled else "")
+
+    def _refresh_hotkey(self):
+        pref = self.prefs
+        pref.hotkey_label.setText(hotkeys.display_text(self.settings.hotkey_hide_face))
+        err = self.hotkey.error if self.settings.hotkey_enabled else None
+        pref.hotkey_status.setText(
+            self.tr("hotkey_error", keys=hotkeys.display_text(self.settings.hotkey_hide_face), err=err)
+            if err else "")
+
+    def _on_hotkey(self):
+        logger.info("Hotkey: toggle face hiding")
+        self._set("hide_face", not self.settings.hide_face)
+
+    def _record_hotkey(self):
+        if self._recorder is not None:
+            return
+        pref = self.prefs
+        self.hotkey.stop()                      # the old combination must not fire meanwhile
+        pref.hotkey_status.setText(self.tr("hotkey_recording"))
+        self._recorder = KeyRecorder(pref.hotkey_change_btn, "combo")
+        self._recorder.finished.connect(self._hotkey_recorded)
+
+    def _hotkey_recorded(self, value):
+        recorder, self._recorder = self._recorder, None
+        if recorder is not None:
+            recorder.deleteLater()
+        if not value:                           # cancelled
+            self._apply_hotkey()
+            self._refresh_hotkey()
+            return
+        try:
+            hotkeys.parse(value)
+        except ValueError as exc:
+            self._apply_hotkey()
+            self._refresh_hotkey()
+            self.prefs.hotkey_status.setText(
+                self.tr("hotkey_error", keys=hotkeys.display_text(value), err=exc))
+            return
+        self._set_hotkey(value)
+
+    def _set_hotkey(self, value):
+        self.settings.hotkey_hide_face = value
+        self._save_timer.start()
+        self._apply_hotkey()
+        self._refresh_hotkey()
+        if not self.hotkey.error:
+            self.toast.show_message(self.tr("hotkey_saved", keys=hotkeys.display_text(value)),
+                                    "success", "check")
+
     def _shutdown(self):
         if getattr(self, "_shut_down", False):
             return
         self._shut_down = True
         logger.info("Quitting")
+        self.hotkey.stop()
         self._close_gaze_overlay()
         self.engine.shutdown()
         self._save_timer.stop()
