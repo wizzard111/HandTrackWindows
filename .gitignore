@@ -1,9 +1,24 @@
+# Python
 __pycache__/
 *.py[cod]
-models/
-logs/
-screenshots/
+.venv/
+venv/
+.pytest_cache/
+
+# Build output
+/build/
+/dist/
+*.spec.bak
+
+# Downloaded at runtime / build time
+/models/
+
+# Per-user data (source checkouts keep it next to the code)
+/logs/
+/screenshots/
+/images/gesture_*
 app_settings.json
 custom_gestures.json
 gaze_calibration.json
 hand_calibration.json
+*.tmp

@@ -1,12 +1,12 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-py -m pip install --upgrade pip
-if errorlevel 1 goto :error
-py -m pip install -r requirements.txt
-if errorlevel 1 goto :error
+rem Developer setup from source. End users: use HandTrack-Setup.exe from Releases.
+py -3 -m venv .venv || goto :error
+.venv\Scripts\python -m pip install --upgrade pip || goto :error
+.venv\Scripts\python -m pip install -r requirements.txt || goto :error
 echo.
-echo Installation completed successfully.
+echo Done. Start with run_windows.bat
 pause
 exit /b 0
 

@@ -1,0 +1,32 @@
+[project]
+name = "handtrack"
+dynamic = ["version"]
+description = "Hand gestures, gaze tracking, privacy mask and a virtual camera for calls"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6-Essentials>=6.7",
+    "opencv-python>=4.8",
+    "mediapipe>=0.10.14",
+    "Pillow>=10.0",
+    "numpy>=1.24,<3",
+    "PyAutoGUI>=0.9.54",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pyinstaller>=6.6"]
+# Fallback output to OBS Virtual Camera (GPL-2.0, not bundled in the installer)
+obs = ["pyvirtualcam>=0.12"]
+
+[project.gui-scripts]
+handtrack = "handtrack.app:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "handtrack.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["handtrack*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

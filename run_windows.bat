@@ -1,5 +1,8 @@
 @echo off
-setlocal
 cd /d "%~dp0"
-py main.py
-if errorlevel 1 pause
+if exist .venv\Scripts\pythonw.exe (
+    start "" .venv\Scripts\pythonw.exe -m handtrack
+) else (
+    py -3 -m handtrack
+    if errorlevel 1 pause
+)
