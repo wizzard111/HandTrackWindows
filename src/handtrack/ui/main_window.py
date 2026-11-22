@@ -18,6 +18,7 @@ from handtrack.config import ACTIONS_WITH_KEYS, ACTIONS_WITH_PARAM, RESOLUTIONS
 from handtrack.i18n import Translator
 from handtrack.ui import theme
 from handtrack.ui.overlays import GazeCalibrationOverlay
+from handtrack.ui.tray import Tray, tray_available
 from handtrack.ui.pages import (
     HazardRule,
     FINGER_KEYS, CalibrationPage, CameraPage, EffectsPage, GesturesPage, SettingsPage,
@@ -150,8 +151,17 @@ class MainWindow(QMainWindow):
         e.gaze_calib_progress.connect(self._on_gaze_progress)
         e.gaze_calib_finished.connect(self._on_gaze_finished)
 
+        self._quitting = False
+        self.tray = None
         self._build()
         set_dark_title_bar(self, settings.dark_mode)
+        app = QApplication.instance()
+        if tray_available():
+            self.tray = Tray(self)
+            app.setQuitOnLastWindowClosed(False)
+        # Signing out / shutting down must quit, not hide to the tray.
+        app.commitDataRequest.connect(lambda _manager: setattr(self, "_quitting", True))
+        app.aboutToQuit.connect(self._shutdown)
         # Calls see the standby picture, not the driver's error pattern, as
         # long as HandTrack runs with streaming on.
         self.engine.sync_vcam()
@@ -306,6 +316,8 @@ class MainWindow(QMainWindow):
             return
         setattr(self.settings, name, value)
         logger.info("Setting %s = %s", name, value)
+        if self.tray is not None:
+            self.tray.refresh()
         for toggle in self._toggles.get(name, ()):
             if toggle.isChecked() != value:
                 toggle.set_silent(value)
@@ -369,6 +381,8 @@ class MainWindow(QMainWindow):
 
     def _refresh_running_ui(self):
         self._refresh_covering()
+        if getattr(self, "tray", None) is not None:
+            self.tray.refresh()
         tr, cam = self.tr, self.camera
         running = self._camera_state != "stopped"
         cam.start_btn.setText(tr("stop_btn") if running else tr("start_btn"))
@@ -839,9 +853,45 @@ class MainWindow(QMainWindow):
         screen = self.screen().geometry()
         self.engine.screen_size = (screen.width(), screen.height())
 
+    # ======================================================= tray / public ====
+    @property
+    def camera_state(self):
+        return self._camera_state
+
+    def toggle_running(self):
+        self._toggle_running()
+
+    def set_setting(self, name, value):
+        self._set(name, value)
+
+    def show_log(self):
+        from handtrack import logwindow
+        logwindow.show_log_window(paths.LOG_FILE)
+
+    def quit_app(self):
+        self._quitting = True
+        self.close()
+
     def closeEvent(self, event):
+        if self.tray is not None and not self._quitting:
+            # The window's X keeps HandTrack (and the call camera) running in the tray.
+            event.ignore()
+            self.hide()
+            self.tray.notify_hidden()
+            logger.info("Window hidden to the tray")
+            return
+        self._shutdown()
+        super().closeEvent(event)
+        QApplication.instance().quit()
+
+    def _shutdown(self):
+        if getattr(self, "_shut_down", False):
+            return
+        self._shut_down = True
+        logger.info("Quitting")
         self._close_gaze_overlay()
         self.engine.shutdown()
         self._save_timer.stop()
         self.settings.save()
-        super().closeEvent(event)
+        if self.tray is not None:
+            self.tray.remove()

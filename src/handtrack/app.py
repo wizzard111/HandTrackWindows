@@ -80,6 +80,7 @@ def main(argv=None):
 
     settings = Settings.load()
     from handtrack import logwindow
+    logwindow.mark_session_start(paths.LOG_FILE)
     logwindow.capture_native_output()   # MediaPipe/OpenCV messages into the log
     if settings.log_window:
         logwindow.open_log_window(logger, paths.LOG_FILE)

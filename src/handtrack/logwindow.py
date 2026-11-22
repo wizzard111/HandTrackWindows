@@ -24,6 +24,13 @@ import threading
 
 TITLE = "HandTrack - log"
 _native = logging.getLogger("handtrack.native")
+_session_offset = None   # log file size when this run started: windows show this run only
+
+
+def mark_session_start(log_path):
+    global _session_offset
+    if _session_offset is None:
+        _session_offset = os.path.getsize(log_path) if os.path.isfile(log_path) else 0
 
 
 def capture_native_output():
@@ -66,12 +73,18 @@ def open_log_window(logger, log_path):
             handler.setFormatter(logging.Formatter("%(asctime)s  %(levelname)-7s  %(message)s", "%H:%M:%S"))
             logger.addHandler(handler)
             return True
-        if sys.platform == "win32":
-            return _windows_window(log_path)
-        return _terminal_tail(log_path)
+        return show_log_window(log_path)
     except Exception:
         logger.exception("Could not open the log window")
         return False
+
+
+def show_log_window(log_path):
+    """Opens one more log window (tray menu "Show log")."""
+    mark_session_start(log_path)
+    if sys.platform == "win32":
+        return _windows_window(log_path)
+    return _terminal_tail(log_path)
 
 
 # Follows the log like tail -f, reopens it after rotation, quits with HandTrack.
@@ -116,7 +129,7 @@ def _windows_window(log_path):
     script = (_PS_VIEWER.replace("__TITLE__", TITLE)
               .replace("__LOG__", log_path.replace("'", "''"))
               .replace("__PID__", str(os.getpid()))
-              .replace("__OFFSET__", str(os.path.getsize(log_path) if os.path.isfile(log_path) else 0)))
+              .replace("__OFFSET__", str(_session_offset or 0)))
     import base64
     encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
     windir = os.environ.get("SystemRoot", r"C:\Windows")
