@@ -51,13 +51,33 @@ Get-Process HandTrack, pythonw -ErrorAction SilentlyContinue |
     Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 400
 
-# Replace the previous version. The camera driver DLL stays locked while a call
-# app (Discord, Telegram, Zoom...) has the camera open.
+# Replace the previous version. Any app that lists cameras (browsers, Discord,
+# Telegram, Electron apps...) loads the camera driver DLL and keeps it locked.
+# A loaded DLL cannot be deleted but can be renamed, so locked files are moved
+# aside as *.old-* and removed by a later install once they are free.
+function Remove-OneFile($file) {
+    try { Remove-Item -LiteralPath $file.FullName -Force -ErrorAction Stop }
+    catch {
+        if ($file.Name -like "*.old-*") { return }          # still locked from an earlier update
+        try { Rename-Item -LiteralPath $file.FullName "$($file.Name).old-$(Get-Random)" -ErrorAction Stop }
+        catch { Fail "не удаётся заменить файл / cannot replace a file: $($file.FullName)" }
+    }
+}
+function Remove-Tree([string]$path) {
+    Get-ChildItem -LiteralPath $path -Recurse -Force -File -ErrorAction SilentlyContinue |
+        ForEach-Object { Remove-OneFile $_ }
+    # Empty folders go; folders still holding a renamed locked DLL stay.
+    Get-ChildItem -LiteralPath $path -Recurse -Force -Directory -ErrorAction SilentlyContinue |
+        Sort-Object { $_.FullName.Length } -Descending |
+        ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue }
+    Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+}
+# A previous uninstall may have scheduled a folder cleanup for the next sign-in;
+# it would wipe this fresh install, so cancel it.
+Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce" -Name "HandTrackCleanup" -ErrorAction SilentlyContinue
 if (Test-Path $InstallDir) {
-    try {
-        Get-ChildItem $InstallDir -Force | Where-Object { $_.Name -ne "runtime" } | Remove-Item -Recurse -Force
-    } catch {
-        Fail "закройте Discord / Telegram / Zoom / браузер и запустите установку снова (файл камеры занят) / close your call apps and run again"
+    Get-ChildItem -LiteralPath $InstallDir -Force | Where-Object { $_.Name -ne "runtime" } | ForEach-Object {
+        if ($_.PSIsContainer) { Remove-Tree $_.FullName } else { Remove-OneFile $_ }
     }
 }
 New-Item -ItemType Directory -Force $InstallDir | Out-Null

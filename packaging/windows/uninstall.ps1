@@ -79,7 +79,20 @@ if (Test-Path $InstallDir) {
         # ("timeout" fails without a console window, so wait with ping instead.)
         Start-Process cmd.exe -ArgumentList "/c ping -n 4 127.0.0.1 >nul & rmdir /s /q `"$InstallDir`"" -WindowStyle Hidden
     } else {
-        Remove-Item $InstallDir -Recurse -Force
+        Remove-Item $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    # Apps that list cameras (browsers, Discord, Telegram, Electron apps) keep
+    # the camera DLL loaded until they quit, so a file may stay behind. Finish
+    # the job at the next sign-in; no administrator rights needed.
+    $runOnce = "HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
+    if (-not (Test-Path $runOnce)) { New-Item -Path $runOnce | Out-Null }
+    New-ItemProperty -Path $runOnce -Name "HandTrackCleanup" -PropertyType String -Force `
+        -Value "cmd.exe /c rmdir /s /q `"$InstallDir`"" | Out-Null
+    if ((-not $self -or -not $self.StartsWith($InstallDir, [StringComparison]::OrdinalIgnoreCase)) -and (Test-Path $InstallDir)) {
+        Write-Host "Файл драйвера камеры ещё занят другой программой — папка дочистится при следующем входе в Windows." -ForegroundColor Yellow
+        Write-Host "The camera driver file is still in use — the folder is cleaned up at your next sign-in." -ForegroundColor Yellow
+    } elseif (-not (Test-Path $InstallDir)) {
+        Remove-ItemProperty -Path $runOnce -Name "HandTrackCleanup" -ErrorAction SilentlyContinue
     }
 }
 if ($removeData -and (Test-Path $DataDir)) {
