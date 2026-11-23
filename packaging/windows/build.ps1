@@ -39,7 +39,7 @@ Write-Host "self-test OK"
 $pkg = "dist\package\HandTrack"
 Remove-Item -Recurse -Force dist\package -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force "$pkg\app" | Out-Null
-Copy-Item "Install HandTrack.bat", "Uninstall HandTrack.bat", "HOW-TO-INSTALL.txt" $pkg
+Copy-Item "Install HandTrack.bat", "Uninstall HandTrack.bat", "Update HandTrack.bat", "HOW-TO-INSTALL.txt" $pkg
 Copy-Item -Recurse dist\HandTrack "$pkg\app\HandTrack"
 Copy-Item packaging\windows\install.ps1, packaging\windows\uninstall.ps1, LICENSE "$pkg\app"
 Copy-Item docs\THIRD_PARTY_NOTICES.md "$pkg\app"

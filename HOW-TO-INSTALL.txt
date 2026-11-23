@@ -32,6 +32,7 @@ STEP 2. UNZIP
   2. Open the new folder. It contains:
        Install HandTrack.bat     <- the installer
        Uninstall HandTrack.bat   <- the uninstaller
+       Update HandTrack.bat      <- installs a newer version
        HOW-TO-INSTALL.txt        <- this guide
 
 
@@ -111,3 +112,14 @@ IF SOMETHING GOES WRONG
     downloading or overwriting anything else.
   * Install log: %TEMP%\handtrack-install.log
     App log:     %APPDATA%\HandTrack\logs\handtrack.log
+
+---------------------------------------------------------------------
+UPDATING
+---------------------------------------------------------------------
+
+  Double-click "Update HandTrack.bat" (in the unzipped folder). It checks
+  GitHub for a newer version, backs up your settings, calibration and
+  gestures, installs the new version (files the new version no longer
+  needs are deleted) and starts HandTrack again. Everything you set up is
+  kept. If it says "up to date", there is nothing to do.
+  The backups are in %LOCALAPPDATA%\HandTrack-updaterackups.
