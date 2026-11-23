@@ -33,6 +33,7 @@ jobs:
           Expand-Archive dist/HandTrack-windows.zip $env:RUNNER_TEMP/rel
           & "$env:RUNNER_TEMP/rel/HandTrack/app/install.ps1" -Yes -NoLaunch -NoDriver -InstallDir "$env:RUNNER_TEMP/inst"
           if ($LASTEXITCODE -ne 0) { throw "install failed" }
+          if (-not (Test-Path "$env:RUNNER_TEMP/inst/update.ps1")) { throw "the updater was not installed" }
           & "$env:RUNNER_TEMP/inst/uninstall.ps1" -All -InstallDir "$env:RUNNER_TEMP/inst"
       - uses: actions/upload-artifact@v4
         with:
