@@ -152,7 +152,7 @@ New-Item -ItemType Directory -Force $InstallDir | Out-Null
 if ($isRelease) {
     Step "The program"
     # Mirrors the whole folder; a source-code install (app, runtime...) is replaced.
-    Show-Sync "HandTrack.exe" (Sync-Tree (Join-Path $here "HandTrack") $InstallDir @("uninstall.ps1", "HandTrack-*.ico"))
+    Show-Sync "HandTrack.exe" (Sync-Tree (Join-Path $here "HandTrack") $InstallDir @("uninstall.ps1", "update.ps1", "HandTrack-*.ico"))
     $target = Join-Path $InstallDir "HandTrack.exe"
     $arguments = ""
     $iconSource = Join-Path $InstallDir "_internal\handtrack\assets\icon.ico"
@@ -239,6 +239,9 @@ if ($isRelease) {
 }
 $uninstallPs1 = Join-Path $InstallDir "uninstall.ps1"
 Copy-Item (Join-Path $here "uninstall.ps1") $uninstallPs1 -Force
+# The updater, started from the Start menu later (no download, so Windows asks nothing).
+$updatePs1 = Join-Path $InstallDir "update.ps1"
+if (Test-Path (Join-Path $here "update.ps1")) { Copy-Item (Join-Path $here "update.ps1") $updatePs1 -Force }
 Get-ChildItem $InstallDir -Recurse -File | Unblock-File -ErrorAction SilentlyContinue
 
 # Shortcut icon under a name that changes with its content: Explorer caches
@@ -303,6 +306,10 @@ $appArgs = @($target, $arguments, $workDir, "$icon,0", "HandTrack — gestures, 
 Set-Shortcut (Join-Path $StartMenu "HandTrack.lnk") @appArgs
 Set-Shortcut (Join-Path $StartMenu "Uninstall HandTrack.lnk") "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
     "-NoProfile -ExecutionPolicy Bypass -File `"$uninstallPs1`"" "" "$env:SystemRoot\System32\shell32.dll,31" "Uninstall HandTrack"
+if (Test-Path $updatePs1) {
+    Set-Shortcut (Join-Path $StartMenu "Update HandTrack.lnk") "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" `
+        "-NoProfile -ExecutionPolicy Bypass -File `"$updatePs1`" -Pause" $InstallDir "$icon,0" "Update HandTrack (settings are kept)"
+}
 $desktopLnk = Join-Path $Desktop "HandTrack.lnk"
 if (Test-Path $desktopLnk) { Set-Shortcut $desktopLnk @appArgs }
 elseif (Ask "Desktop shortcut?") { Set-Shortcut $desktopLnk @appArgs }

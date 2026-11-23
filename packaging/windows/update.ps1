@@ -12,11 +12,13 @@
 #          -Yes     no questions
 #          -Package <file.zip>  install a release zip that is already downloaded (no internet needed)
 #          -NoLaunch            do not start the app afterwards
+#          -Pause               wait for Enter at the end (the Start menu shortcut uses it)
 param(
     [switch]$Check,
     [switch]$Force,
     [switch]$Yes,
     [switch]$NoLaunch,
+    [switch]$Pause,
     [string]$Package = "",
     [string]$InstallDir = "$env:LOCALAPPDATA\Programs\HandTrack",
     [string]$SettingsDir = "$env:APPDATA\HandTrack",
@@ -118,13 +120,13 @@ Write-Host "================================================"
 Write-Host "  $AppName updater"
 Write-Host "================================================"
 
-# One updater at a time.
-$mutex = New-Object Threading.Mutex($false, "Local\$($AppName -replace '\W', '')-updater")
-try { $owned = $mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $owned = $true }
-if (-not $owned) { Fail "another update of $AppName is already running" }
-
-$work = $null
+$work = $null; $owned = $false
 try {
+    # One updater at a time.
+    $mutex = New-Object Threading.Mutex($false, "Local\$($AppName -replace '\W', '')-updater")
+    try { $owned = $mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $owned = $true }
+    if (-not $owned) { Fail "another update of $AppName is already running" }
+
     # ------------------------------------------------------------ 1. versions
     $installedText = (Get-ItemProperty -Path $UninstallKey -ErrorAction SilentlyContinue).DisplayVersion
     $isInstalled = Test-Installed
@@ -137,14 +139,31 @@ try {
         $Package = (Resolve-Path -LiteralPath $Package).Path
         Info "Package:   $Package"
     } else {
+        $release = $null
         try { $release = Invoke-RestMethod -UseBasicParsing -Uri $Api -Headers @{ "User-Agent" = "$AppName-updater"; "Accept" = "application/vnd.github+json" } -TimeoutSec 30 }
-        catch { Fail "could not ask GitHub for the latest version ($($_.Exception.Message)). Check the internet connection." }
-        $latestText = "$($release.tag_name)".TrimStart('v', 'V')
-        $a = @($release.assets | Where-Object { $_.name -eq $Asset })[0]
-        if (-not $a) { Fail "release $($release.tag_name) has no $Asset" }
-        $download = $a.browser_download_url
-        if ("$($a.digest)" -match '^sha256:([0-9a-fA-F]{64})$') { $digest = $Matches[1].ToUpperInvariant() }
-        Info "Latest:    v$latestText ($([math]::Round($a.size / 1MB, 1)) MB)"
+        catch { }
+        if ($release -and $release.tag_name) {
+            $latestText = "$($release.tag_name)".TrimStart('v', 'V')
+            $a = @($release.assets | Where-Object { $_.name -eq $Asset })[0]
+            if (-not $a) { Fail "release $($release.tag_name) has no $Asset" }
+            $download = $a.browser_download_url
+            if ("$($a.digest)" -match '^sha256:([0-9a-fA-F]{64})$') { $digest = $Matches[1].ToUpperInvariant() }
+            Info "Latest:    v$latestText ($([math]::Round($a.size / 1MB, 1)) MB)"
+        } else {
+            # The GitHub API answers 60 questions an hour per address; the release page names the latest version too.
+            $repo = [regex]::Match($Api, 'repos/([^/]+/[^/]+)/').Groups[1].Value
+            $page = ""
+            try {
+                $req = [Net.HttpWebRequest]::Create("https://github.com/$repo/releases/latest")
+                $req.Method = "HEAD"; $req.UserAgent = "$AppName-updater"; $req.Timeout = 30000
+                $resp = $req.GetResponse(); $page = $resp.ResponseUri.AbsoluteUri; $resp.Close()
+            } catch { Fail "could not ask GitHub for the latest version ($($_.Exception.Message)). Check the internet connection." }
+            if ($page -notmatch '/releases/tag/([^/?#]+)') { Fail "GitHub did not say which version is the latest" }
+            $tag = $Matches[1]
+            $latestText = $tag.TrimStart('v', 'V')
+            $download = "https://github.com/$repo/releases/download/$tag/$Asset"
+            Info "Latest:    v$latestText"
+        }
 
         $latest = ConvertTo-Version $latestText
         $upToDate = $installed -and $latest -and ($installed -ge $latest)
@@ -234,4 +253,5 @@ try {
 } finally {
     if ($work) { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
     if ($owned) { $mutex.ReleaseMutex() }
+    if ($Pause) { Write-Host ""; Read-Host "Press Enter to close this window" | Out-Null }
 }

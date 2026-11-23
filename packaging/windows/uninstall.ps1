@@ -65,6 +65,7 @@ if ($dlls) {
 
 Write-Host ">> Removing shortcuts and the Apps entry" -ForegroundColor Red
 foreach ($lnk in (Join-Path $StartMenu "HandTrack.lnk"), (Join-Path $StartMenu "Uninstall HandTrack.lnk"),
+                 (Join-Path $StartMenu "Update HandTrack.lnk"),
                  (Join-Path $Desktop "HandTrack.lnk")) {
     if (Test-Path $lnk) { Remove-Item $lnk -Force }
 }
@@ -95,6 +96,7 @@ if (Test-Path $InstallDir) {
 }
 if ($removeData -and (Test-Path $DataDir)) {
     Remove-Item $DataDir -Recurse -Force
+    Remove-Item "$env:LOCALAPPDATA\HandTrack-updater" -Recurse -Force -ErrorAction SilentlyContinue   # settings backups
     Write-Host "Settings deleted."
 } elseif (Test-Path $DataDir) {
     Write-Host "Settings kept: $DataDir"

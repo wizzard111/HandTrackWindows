@@ -117,9 +117,11 @@ IF SOMETHING GOES WRONG
 UPDATING
 ---------------------------------------------------------------------
 
-  Double-click "Update HandTrack.bat" (in the unzipped folder). It checks
-  GitHub for a newer version, backs up your settings, calibration and
-  gestures, installs the new version (files the new version no longer
-  needs are deleted) and starts HandTrack again. Everything you set up is
-  kept. If it says "up to date", there is nothing to do.
-  The backups are in %LOCALAPPDATA%\HandTrack-updaterackups.
+  Start menu -> "Update HandTrack" (the installer puts it there).
+  It checks GitHub for a newer version, backs up your settings,
+  calibration and gestures, installs the new version (files the new
+  version no longer needs are deleted) and starts HandTrack again.
+  Everything you set up is kept. If it says "up to date", there is
+  nothing to do. (Installed with an older version that has no such entry?
+  Double-click "Update HandTrack.bat" in the unzipped folder once.)
+  The backups are in %LOCALAPPDATA%\HandTrack-updater\backups.
