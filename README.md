@@ -28,6 +28,17 @@ Running the installer again only adds what is missing or changed.
 > You can also download just the code (Code → Download ZIP): the same installer sets up an
 > isolated Python 3.12 and all libraries inside the program folder. Nothing to install by hand.
 
+## Update
+
+HandTrack has an updater: **Start → Update HandTrack** (the installer adds it). It asks GitHub whether a
+newer version exists, backs up your settings, calibration and gestures (`%LOCALAPPDATA%\HandTrack-updater\backups`,
+the last 3), downloads the release and checks its SHA-256, installs it (files the new version no longer needs are
+deleted), checks that every setting is still there and starts HandTrack again if it was running.
+No administrator rights and no Windows warning; the camera driver is registered again only if it was installed
+before (then Windows asks "Yes" once). Installed with an older version without the Start menu entry? Double-click
+**Update HandTrack.bat** in the unzipped folder once. Scripted: `update.ps1 -Check | -Force | -Yes | -Package <zip>`.
+The updater is one script of about 14 KB; it runs only when you start it.
+
 ## Features
 
 - **HandTrack Camera**: its own virtual camera (the driver is installed with the app). The resolution adapts by itself and the picture is never stretched. While nobody watches the camera, almost no frames are sent, so the CPU rests.
@@ -51,6 +62,7 @@ Running the installer again only adds what is missing or changed.
 ```
 Install HandTrack.bat     the installer (the only thing you need to run)
 Uninstall HandTrack.bat   the uninstaller
+Update HandTrack.bat      the updater (also "Start → Update HandTrack")
 HOW-TO-INSTALL.txt        step-by-step guide
 src/handtrack/            the program: engine, vision, vcam, ui, …
 packaging/                build: windows/, shared PyInstaller spec, model and driver download
